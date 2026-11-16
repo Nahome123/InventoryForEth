@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { eq, sql } from "drizzle-orm";
+import { saleItems, sales } from "@/lib/db/schema";
+import { SupplierGroups } from "./supplier-groups";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { getSettings } from "@/lib/analytics";
@@ -10,11 +13,21 @@ import { Empty, MobileCard, MobileList, PageHeader, StatTile, StockBadge, TableW
 
 export const metadata = { title: "Inventory" };
 
-export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
+export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; group?: string }> }) {
   const user = await requireUser("viewInventory");
   const sp = await searchParams;
   const db = await getDb();
-  const [levels, s] = await Promise.all([getStockLevels(db), getSettings(db)]);
+  const [levels, s, soldRows] = await Promise.all([
+    getStockLevels(db),
+    getSettings(db),
+    db
+      .select({ productId: saleItems.productId, qty: sql<number>`sum(${saleItems.quantity})::int` })
+      .from(saleItems)
+      .innerJoin(sales, eq(sales.id, saleItems.saleId))
+      .where(eq(sales.status, "completed"))
+      .groupBy(saleItems.productId),
+  ]);
+  const sold = new Map(soldRows.map((r) => [r.productId, Number(r.qty)]));
   const showCosts = can(user.role, "viewCosts");
   const out = levels.filter((l) => l.status === "out");
   const low = levels.filter((l) => l.status === "low");
@@ -53,7 +66,25 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
         {showCosts ? <StatTile label="Stock value (cost)" value={formatMoney(value, s.currency)} hint={`${formatMoney(retail, s.currency)} at selling price`} /> : <StatTile label="Needs attention" value={out.length + low.length} />}
       </div>
 
-      <form className="my-5 grid grid-cols-[1fr_auto] gap-2 sm:flex sm:flex-wrap" role="search">
+      <SupplierGroups
+        selected={sp.group}
+        canReceive={can(user.role, "adjustStock")}
+        money={showCosts ? (c: number) => formatMoney(c, s.currency) : null}
+        products={levels.map((l) => ({
+          id: l.id,
+          name: l.name,
+          sku: l.sku,
+          supplier: l.supplier,
+          onHand: l.onHand,
+          available: l.available,
+          sold: sold.get(l.id) ?? 0,
+          costCents: l.costPriceCents,
+          status: l.status,
+        }))}
+      />
+
+      <h2 className="mt-8 text-lg font-semibold">Stock status</h2>
+      <form className="mb-5 mt-3 grid grid-cols-[1fr_auto] gap-2 sm:flex sm:flex-wrap" role="search">
         <SuggestInput className="col-span-2 sm:max-w-xs" name="q" defaultValue={sp.q} placeholder="Search or scan" ariaLabel="Search" suggestions={levels.flatMap((l) => [{ value: l.name, label: l.name, sub: l.sku }, { value: l.sku, label: l.sku, sub: l.name }])} />
         <select className="input sm:w-auto" name="status" defaultValue={status} aria-label="Status">
           <option value="attention">Low or out of stock</option>

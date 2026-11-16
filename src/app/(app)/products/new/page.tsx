@@ -9,9 +9,9 @@ import { createProductAction } from "../actions";
 
 export const metadata = { title: "New product" };
 
-export default async function NewProductPage({ searchParams }: { searchParams: Promise<{ created?: string }> }) {
+export default async function NewProductPage({ searchParams }: { searchParams: Promise<{ created?: string; supplier?: string }> }) {
   await requireUser("manageProducts");
-  const { created } = await searchParams;
+  const { created, supplier } = await searchParams;
   const db = await getDb();
   const [cats, s] = await Promise.all([db.select().from(categories).orderBy(asc(categories.name)), getSettings(db)]);
   return (
@@ -22,7 +22,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
           <Alert tone="good">Product created. Add the next one below.</Alert>
         </div>
       )}
-      <ProductForm action={createProductAction} isNew categories={cats.map((c) => c.name)} currency={s.currency} defaultLeadTime={s.defaultLeadTimeDays} />
+      <ProductForm action={createProductAction} initial={supplier ? { supplier } : undefined} isNew categories={cats.map((c) => c.name)} currency={s.currency} defaultLeadTime={s.defaultLeadTimeDays} />
     </div>
   );
 }
