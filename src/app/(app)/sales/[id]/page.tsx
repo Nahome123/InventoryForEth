@@ -130,7 +130,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
         {sale.orderId && (
           <p className="text-sm">
             From customer order{" "}
-            <Link href={`/orders/${sale.orderId}`} className="text-accent hover:underline">
+            <Link href={`/orders/${sale.orderId}`} className="text-accent-fg hover:underline">
               {orderNo(sale.orderId)}
             </Link>
           </p>

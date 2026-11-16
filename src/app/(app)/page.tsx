@@ -103,7 +103,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <section className="card p-5 sm:p-6">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Needs restocking</h2>
-            <Link href={can(user.role, "viewAnalytics") ? "/analytics" : "/inventory?status=low"} className="text-sm font-semibold text-accent hover:underline">
+            <Link href={can(user.role, "viewAnalytics") ? "/analytics" : "/inventory?status=low"} className="text-sm font-semibold text-accent-fg hover:underline">
               View all
             </Link>
           </div>
@@ -118,7 +118,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                       {r.name}
                     </Link>
                     <span className="text-xs text-ink-3">
-                      {r.available} available{r.committed ? ` · ${r.committed} reserved` : ""} · suggest {r.forecast.suggestedOrderQty}
+                      {`${r.available} available${r.committed ? ` · ${r.committed} reserved` : ""} · suggest ${r.forecast.suggestedOrderQty}`}
                     </span>
                   </div>
                   {r.forecast.urgency === "order_now" ? <Badge tone="bad">Order now</Badge> : <StockBadge status="low" />}
@@ -131,7 +131,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <section className="card p-5 sm:p-6">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Upcoming customer orders</h2>
-            <Link href="/orders" className="text-sm font-semibold text-accent hover:underline">
+            <Link href="/orders" className="text-sm font-semibold text-accent-fg hover:underline">
               View all
             </Link>
           </div>

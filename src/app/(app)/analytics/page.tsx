@@ -105,7 +105,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                       </Link>
                       <div className="font-mono text-xs text-ink-3">{r.sku}</div>
                       <details className="mt-1 text-xs text-ink-2">
-                        <summary className="cursor-pointer select-none text-accent">Why?</summary>
+                        <summary className="cursor-pointer select-none text-accent-fg">Why?</summary>
                         <p className="mt-1">{r.forecast.explanation}</p>
                       </details>
                     </td>
@@ -114,7 +114,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                     </td>
                     <td className={clsx("num", r.available < 0 && "font-semibold text-bad")}>
                       {r.available}
-                      {r.committed > 0 && <div className="text-xs text-ink-3">{r.committed} reserved</div>}
+                      {r.committed > 0 && <div className="text-xs text-ink-3">{`${r.committed} reserved`}</div>}
                     </td>
                     <td className="num hidden sm:table-cell">{weekly(r)}</td>
                     <td className="num hidden md:table-cell">{r.forecast.daysOfCover === null ? "—" : Math.floor(r.forecast.daysOfCover)}</td>

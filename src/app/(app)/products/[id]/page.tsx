@@ -166,7 +166,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
                   <td>
                     {MOVEMENT_LABELS[m.type]}
                     {m.saleId && (
-                      <Link href={`/sales/${m.saleId}`} className="ml-1 text-xs text-accent hover:underline">
+                      <Link href={`/sales/${m.saleId}`} className="ml-1 text-xs text-accent-fg hover:underline">
                         {saleNo(m.saleId)}
                       </Link>
                     )}

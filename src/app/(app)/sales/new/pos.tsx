@@ -76,7 +76,7 @@ export function PointOfSale({ products, currency }: { products: PickProduct[]; c
           <legend className="label">Payment method</legend>
           <div className="grid grid-cols-2 gap-2">
             {METHODS.map(([v, l]) => (
-              <label key={v} className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-center text-sm font-medium transition ${method === v ? "border-accent bg-accent-soft text-accent" : "border-line-strong"}`}>
+              <label key={v} className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-center text-sm font-medium transition ${method === v ? "border-accent bg-accent-soft text-accent-fg" : "border-line-strong"}`}>
                 <input type="radio" name="paymentMethod" value={v} checked={method === v} onChange={() => setMethod(v)} className="sr-only" />
                 {l}
               </label>
@@ -102,7 +102,7 @@ export function PointOfSale({ products, currency }: { products: PickProduct[]; c
 
         <dl className="space-y-1 border-t border-line pt-3 text-sm">
           <div className="flex justify-between">
-            <dt className="text-ink-2">Subtotal ({units} item{units === 1 ? "" : "s"})</dt>
+            <dt className="text-ink-2">{`Subtotal (${units} item${units === 1 ? "" : "s"})`}</dt>
             <dd className="tabular-nums">{fmtMoney(subtotal, currency)}</dd>
           </div>
           {!!discountCents && (
@@ -145,7 +145,7 @@ export function PointOfSale({ products, currency }: { products: PickProduct[]; c
           >
             <span className="min-w-0">
               <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] opacity-70">
-                {units} item{units === 1 ? "" : "s"}
+                {`${units} item${units === 1 ? "" : "s"}`}
               </span>
               <span className="block truncate font-display text-lg font-semibold tabular-nums">{fmtMoney(Math.max(0, total), currency)}</span>
             </span>

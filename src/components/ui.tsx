@@ -4,11 +4,11 @@ import { ORDER_STATUS_LABELS } from "@/lib/format";
 
 export function PageHeader({ title, subtitle, actions, eyebrow }: { title: string; subtitle?: React.ReactNode; actions?: React.ReactNode; eyebrow?: React.ReactNode }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-7 sm:gap-4">
       <div className="min-w-0">
         {eyebrow && <div className="eyebrow mb-2">{eyebrow}</div>}
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight sm:text-4xl">{title}</h1>
-        {subtitle && <p className="mt-2 text-[15px] text-ink-2">{subtitle}</p>}
+        <h1 className="text-2xl font-semibold sm:text-[34px]">{title}</h1>
+        {subtitle && <p className="mt-1.5 max-w-[60ch] text-sm text-ink-2 sm:mt-2 sm:text-[15px]">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
@@ -21,7 +21,7 @@ const tones: Record<Tone, string> = {
   good: "bg-good-soft text-good",
   warn: "bg-warn-soft text-warn",
   bad: "bg-bad-soft text-bad",
-  accent: "bg-accent-soft text-accent",
+  accent: "bg-accent-soft text-accent-fg",
 };
 
 export function Badge({ tone = "neutral", children, className }: { tone?: Tone; children: React.ReactNode; className?: string }) {
@@ -39,7 +39,7 @@ export function StatTile({ label, value, hint, href }: { label: string; value: R
     // Phones: a full-width row (label left, value right) so long amounts never get squeezed.
     <div className="card flex h-full items-center justify-between gap-4 px-4 py-3.5 sm:block sm:p-5">
       <div className="min-w-0">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">{label}</div>
+        <div className="font-mono text-xs text-ink-3">{label}</div>
         {hint && <div className="mt-1 truncate text-[13px] text-ink-2 sm:hidden">{hint}</div>}
       </div>
       <div className="shrink-0 text-right font-display text-xl font-semibold leading-tight tracking-tight tabular-nums sm:mt-2 sm:text-left sm:text-3xl">{value}</div>
@@ -85,7 +85,7 @@ export function Pagination({ page, hasMore, makeHref }: { page: number; hasMore:
           ← Previous
         </Link>
       )}
-      <span className="text-ink-3">Page {page}</span>
+      <span className="text-ink-3">{`Page ${page}`}</span>
       {hasMore && (
         <Link className="btn-secondary" href={makeHref(page + 1)}>
           Next →
@@ -130,7 +130,7 @@ export function MobileCard({
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-semibold leading-snug">{title}</div>
+          <div className="font-semibold leading-snug" translate="no">{title}</div>
           {subtitle && <div className="mt-0.5 truncate text-xs text-ink-3">{subtitle}</div>}
         </div>
         {(aside || asideSub) && (
@@ -144,7 +144,7 @@ export function MobileCard({
         <dl className={clsx("mt-3 grid gap-x-3 gap-y-2.5 border-t border-dashed border-line-strong pt-3", facts.length === 2 || facts.length === 4 ? "grid-cols-2" : "grid-cols-3")}>
           {facts.map((f) => (
             <div key={f.label} className="min-w-0">
-              <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-3">{f.label}</dt>
+              <dt className="font-mono text-[11px] text-ink-3">{f.label}</dt>
               <dd className={clsx("mt-0.5 truncate text-sm font-medium tabular-nums", f.className)}>{f.value}</dd>
             </div>
           ))}

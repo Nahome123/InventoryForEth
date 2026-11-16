@@ -63,7 +63,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <h2 className="mb-2 text-lg font-semibold">Customer</h2>
           <div className="text-base font-semibold">{o.customerName}</div>
           {o.customerPhone && (
-            <a className="text-accent hover:underline" href={`tel:${o.customerPhone}`}>
+            <a className="text-accent-fg hover:underline" href={`tel:${o.customerPhone}`}>
               {o.customerPhone}
             </a>
           )}
@@ -130,7 +130,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       {o.fulfilledSaleId && (
         <p className="mt-4 text-sm">
           Fulfilled as sale{" "}
-          <Link className="text-accent hover:underline" href={`/sales/${o.fulfilledSaleId}`}>
+          <Link className="text-accent-fg hover:underline" href={`/sales/${o.fulfilledSaleId}`}>
             {saleNo(o.fulfilledSaleId)}
           </Link>
           .

@@ -2,56 +2,65 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Palette: warm paper background, near-black ink, signal-orange accent. */
 :root {
-  --bg: #f3f3f6;
-  --grid: rgb(20 20 40 / 0.045);
-  --glow: rgb(79 70 229 / 0.10);
+  --bg: #f1f0f3;
+  --grid: rgb(28 27 31 / 0.05);
+  --glow: rgb(242 96 12 / 0.13);
+  --glow-2: rgb(242 96 12 / 0.07);
   --surface: #ffffff;
-  --surface-2: #f5f5f8;
-  --border: #e4e4ea;
-  --border-strong: #d4d4dd;
-  --text: #15151c;
-  --text-2: #4b4b57;
-  --text-3: #7c7c88;
-  --accent: #4f46e5;
-  --accent-strong: #4338ca;
+  --surface-2: #f7f6f8;
+  --border: #dedce1;
+  --border-strong: #cdcad2;
+  --text: #1c1b1f;
+  --text-2: #55535a;
+  --text-3: #8b8891;
+  --accent: #f2600c;
+  --accent-strong: #d9520a;
+  --accent-fg: #c2450a;
   --accent-ink: #ffffff;
-  --accent-soft: #eeedfd;
-  --good: #0f7a3d;
-  --good-soft: #e3f4e9;
+  --accent-soft: #fdebdd;
+  --good: #1e8a5f;
+  --good-soft: #e4f4ec;
   --warn: #8a5a00;
   --warn-soft: #fdf1d6;
-  --bad: #b42318;
-  --bad-soft: #fde7e4;
-  --series-1: #4f46e5;
-  --shadow: 0 1px 2px rgb(20 20 40 / 0.04), 0 8px 24px -12px rgb(20 20 40 / 0.10);
+  --bad: #b3261e;
+  --bad-soft: #fbe7e5;
+  --series-1: #f2600c;
+  --deep: #1b1b1f;
+  --on-deep: #f5f4f6;
+  --shadow: 0 1px 2px rgb(28 27 31 / 0.04);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e0e13;
-    --grid: rgb(255 255 255 / 0.035);
-    --glow: rgb(129 140 248 / 0.12);
-    --surface: #17171e;
-    --surface-2: #1f1f28;
-    --border: #2a2a35;
-    --border-strong: #3a3a47;
-    --text: #f1f1f5;
-    --text-2: #c2c2cc;
-    --text-3: #8e8e9b;
-    --accent: #818cf8;
-    --accent-strong: #a5b4fc;
-    --accent-ink: #0e0e13;
-    --accent-soft: #23234a;
-    --good: #5fd08f;
-    --good-soft: #15301f;
+    --bg: #141316;
+    --grid: rgb(255 255 255 / 0.04);
+    --glow: rgb(242 96 12 / 0.2);
+    --glow-2: rgb(242 96 12 / 0.1);
+    --surface: #1b1b1f;
+    --surface-2: #232227;
+    --border: #333138;
+    --border-strong: #45424b;
+    --text: #f5f4f6;
+    --text-2: #b7b5bc;
+    --text-3: #8b8891;
+    --accent: #f2600c;
+    --accent-strong: #ff7a2e;
+    --accent-fg: #fdba74;
+    --accent-ink: #ffffff;
+    --accent-soft: #3a2416;
+    --good: #4cc38a;
+    --good-soft: #14301f;
     --warn: #f2bd4d;
     --warn-soft: #362a10;
-    --bad: #ff8a7a;
-    --bad-soft: #3b1a16;
-    --series-1: #818cf8;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+    --bad: #ff8a80;
+    --bad-soft: #3b1a17;
+    --series-1: #f2600c;
+    --deep: #0e0d10;
+    --on-deep: #f5f4f6;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
 }
@@ -67,6 +76,7 @@
   --color-ink-3: var(--text-3);
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
+  --color-accent-fg: var(--accent-fg);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
   --color-good: var(--good);
@@ -75,27 +85,51 @@
   --color-warn-soft: var(--warn-soft);
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
-  --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", sans-serif;
-  --font-display: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, "Noto Sans Ethiopic", sans-serif;
+  --color-deep: var(--deep);
+  --color-on-deep: var(--on-deep);
+  --font-sans: var(--font-body), var(--font-ethiopic), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", sans-serif;
+  --font-display: var(--font-heading), var(--font-ethiopic), ui-sans-serif, system-ui, "Noto Sans Ethiopic", sans-serif;
+  --font-mono: var(--font-code), var(--font-ethiopic), ui-monospace, "SFMono-Regular", Menlo, monospace;
   --shadow-card: var(--shadow);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background-color: var(--bg);
-  /* Soft glow at the top over a faint grid, fixed so it stays put while content scrolls. */
   background-image:
-    radial-gradient(60rem 28rem at 85% -6rem, var(--glow), transparent 70%),
+    radial-gradient(ellipse 720px 420px at 8% -12%, var(--glow), transparent 60%),
+    radial-gradient(ellipse 520px 380px at 100% 0%, var(--glow-2), transparent 55%);
+  background-repeat: no-repeat;
+  color: var(--text);
+  line-height: 1.55;
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Faint grid that fades out from the top of the page. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: auto, 56px 56px, 56px 56px;
-  background-attachment: fixed;
-  color: var(--text);
-  -webkit-tap-highlight-color: transparent;
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 55% at 50% 0%, #000, transparent 78%);
+  mask-image: radial-gradient(ellipse 75% 55% at 50% 0%, #000, transparent 78%);
 }
 
 @media print {
   body {
     background: #fff;
+  }
+  body::before {
+    display: none;
   }
 }
 
@@ -103,39 +137,68 @@ h1,
 h2,
 h3 {
   @apply font-display;
-  letter-spacing: -0.015em;
+  font-weight: 600;
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Amharic: hide page text until it's been translated, so English doesn't flash first.
+   The animation reveals it anyway after a moment in case scripts fail. */
+html[data-lang="am"]:not([data-i18n-ready]) body {
+  opacity: 0;
+  animation: i18n-reveal 0s linear 1.2s forwards;
+}
+@keyframes i18n-reveal {
+  to {
+    opacity: 1;
+  }
+}
+html[lang="am"] body {
+  line-height: 1.65;
 }
 
 @utility card {
-  @apply rounded-2xl border border-line bg-surface shadow-card;
+  @apply rounded-[10px] border border-line bg-surface shadow-card;
 }
 
 @utility eyebrow {
-  @apply text-xs font-semibold uppercase tracking-[0.14em] text-accent;
+  @apply font-mono text-[12.5px] text-accent-fg;
 }
 
 @utility input {
-  @apply block min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 py-2.5 text-[15px] text-ink transition placeholder:text-ink-3 hover:border-ink-3 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15 disabled:opacity-60;
+  @apply block min-h-11 w-full min-w-0 max-w-full rounded-[4px] border border-line bg-surface px-3 py-2.5 text-[15px] text-ink transition placeholder:text-ink-3 hover:border-line-strong focus:border-accent focus:outline-none disabled:opacity-60;
 }
 
 @utility label {
-  @apply mb-1.5 block text-sm font-medium text-ink-2;
+  @apply mb-1.5 block font-mono text-xs text-ink-3;
 }
 
 @utility btn {
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[4px] border border-transparent px-5 py-2.5 text-[14.5px] font-medium transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0;
 }
 
 @utility btn-primary {
-  @apply btn bg-accent text-accent-ink shadow-sm hover:bg-accent-strong;
+  @apply btn bg-accent text-accent-ink hover:bg-accent-strong;
 }
 
 @utility btn-secondary {
-  @apply btn border border-line-strong bg-surface text-ink hover:border-ink-3 hover:bg-surface-2;
+  @apply btn border-line bg-transparent text-ink hover:border-ink-2;
 }
 
 @utility btn-danger {
-  @apply btn border border-bad/40 bg-bad-soft text-bad hover:brightness-95;
+  @apply btn border-bad/40 bg-bad-soft text-bad hover:brightness-95;
 }
 
 @utility data-table {
@@ -148,7 +211,7 @@ h3 {
 
 @layer components {
   .data-table th {
-    @apply whitespace-nowrap border-b border-line bg-surface-2 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3;
+    @apply whitespace-nowrap border-b border-line bg-surface-2 px-4 py-3 font-mono text-[11.5px] font-normal text-ink-3;
   }
   .data-table td {
     @apply border-b border-line px-4 py-3 align-middle;
@@ -159,10 +222,43 @@ h3 {
   .data-table tbody tr:last-child td {
     @apply border-b-0;
   }
+  /* iOS gives date inputs a wide intrinsic size; keep them inside their column. */
+  input[type="date"].input {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  /* Custom chevron for selects, as on the reference site. */
+  select.input {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238B8891' stroke-width='1.8'%3E%3Cpath d='M5 7l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
 }
 
 @media (max-width: 639.98px) {
   [data-filters]:not([data-open]) .filter-extra {
     display: none;
+  }
+  /* Phones: tighter tables that wrap instead of running off the screen. */
+  .data-table {
+    font-size: 13px;
+  }
+  .data-table th {
+    white-space: normal;
+    padding: 0.6rem 0.6rem;
+  }
+  .data-table td {
+    padding: 0.65rem 0.6rem;
+  }
+  .data-table td.whitespace-nowrap {
+    white-space: normal;
+  }
+  /* Grid/flex children default to min-width:auto, which lets wide content push past the screen. */
+  main :where(.grid > *, .flex > *) {
+    min-width: 0;
   }
 }

@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/analytics";
 import { can, ROLE_LABELS, type Permission } from "@/lib/permissions";
 import { MobileNav, TopNav, type NavItem } from "@/components/nav";
 import { logoutAction } from "../auth-actions";
+import { getLang } from "@/lib/i18n/server";
 
 const NAV: (NavItem & { perm?: Permission })[] = [
   { href: "/", label: "Home", icon: "LayoutDashboard", mobile: true },
@@ -23,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect((await hasAnyUser()) ? "/login" : "/setup");
   const s = await getSettings(await getDb());
   const items = NAV.filter((n) => !n.perm || can(user.role, n.perm)).map(({ perm: _perm, ...n }) => n);
-  const nav = { items, storeName: s.storeName, userName: user.fullName, roleLabel: ROLE_LABELS[user.role], canSell: can(user.role, "recordSales"), logout: logoutAction };
+  const nav = { items, storeName: s.storeName, userName: user.fullName, roleLabel: ROLE_LABELS[user.role], canSell: can(user.role, "recordSales"), lang: await getLang(), logout: logoutAction };
 
   return (
     <div className="flex min-h-dvh flex-col">

@@ -16,7 +16,7 @@ export default async function ImportPage() {
             Required columns: <code>name</code>, <code>sku</code>, <code>sell_price</code>. Optional: barcode, category, unit, cost_price, opening_stock, reorder_level, reorder_qty, lead_time_days, supplier.
             Rows with an SKU that already exists update that product (stock isn&apos;t changed).
           </p>
-          <a className="text-sm text-accent underline" href="/api/export/template-products">
+          <a className="text-sm text-accent-fg underline" href="/api/export/template-products">
             Download products template
           </a>
           <ProductImportForm />
@@ -27,7 +27,7 @@ export default async function ImportPage() {
             Columns: <code>date</code> (2026-09-01 or 2026-09-01 14:30), <code>sku</code>, <code>quantity</code>. Optional: unit_price (defaults to the current price), payment_method, customer, receipt. Rows
             sharing a receipt number on the same day become one sale. Past sales feed the demand forecast.
           </p>
-          <a className="text-sm text-accent underline" href="/api/export/template-sales">
+          <a className="text-sm text-accent-fg underline" href="/api/export/template-sales">
             Download sales template
           </a>
           <SalesImportForm />

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { LangToggle } from "./lang-toggle";
+import type { Lang } from "@/lib/i18n/lang";
 import { BarChart3, Boxes, ChevronDown, ClipboardList, LayoutDashboard, LogOut, Menu, Package, Plus, Receipt, Settings, ShoppingCart, Store, Upload, X } from "lucide-react";
 
 const ICONS = { LayoutDashboard, ShoppingCart, Receipt, ClipboardList, Package, Boxes, BarChart3, Upload, Settings };
@@ -18,10 +20,10 @@ function isActive(pathname: string, href: string) {
 function Logo({ storeName }: { storeName: string }) {
   return (
     <Link href="/" className="flex min-w-0 items-center gap-2.5">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-ink shadow-sm">
-        <Store size={18} aria-hidden />
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-accent text-accent-ink">
+        <Store size={16} aria-hidden />
       </span>
-      <span className="truncate font-display text-lg font-semibold tracking-tight">{storeName}</span>
+      <span className="truncate font-display text-[17px] font-semibold">{storeName}</span>
     </Link>
   );
 }
@@ -36,16 +38,16 @@ function initials(name: string) {
 }
 
 /** Desktop header: logo, links, primary action and the account menu. */
-export function TopNav({ items, storeName, userName, roleLabel, canSell, logout }: { items: NavItem[]; storeName: string; userName: string; roleLabel: string; canSell: boolean; logout: () => Promise<void> }) {
+export function TopNav({ items, storeName, userName, roleLabel, canSell, lang, logout }: { items: NavItem[]; storeName: string; userName: string; roleLabel: string; canSell: boolean; lang: Lang; logout: () => Promise<void> }) {
   const pathname = usePathname();
   const links = items.filter((i) => !(canSell && i.href === "/sales/new"));
   return (
-    <header className="sticky top-0 z-30 hidden border-b border-line bg-surface/80 backdrop-blur-md print:hidden lg:block">
-      <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-6 px-6">
+    <header className="sticky top-0 z-30 hidden border-b border-line bg-bg/90 backdrop-blur-md print:hidden lg:block">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
         <div className="w-10 shrink-0 xl:w-auto xl:max-w-56">
           <span className="xl:hidden">
-            <Link href="/" aria-label={storeName} className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-ink shadow-sm">
-              <Store size={18} aria-hidden />
+            <Link href="/" aria-label={storeName} className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-accent text-accent-ink">
+              <Store size={16} aria-hidden />
             </Link>
           </span>
           <span className="hidden xl:block">
@@ -63,18 +65,19 @@ export function TopNav({ items, storeName, userName, roleLabel, canSell, logout 
                 aria-current={active ? "page" : undefined}
                 title={it.label}
                 className={clsx(
-                  "relative whitespace-nowrap rounded-lg px-3 py-2 text-[15px] transition-colors",
+                  "relative whitespace-nowrap rounded-[4px] px-3 py-2 text-[14.5px] transition-colors",
                   active ? "font-medium text-ink" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
                 )}
               >
                 {it.short ?? it.label}
-                {active && <span className="absolute inset-x-3 -bottom-[17px] h-0.5 rounded-full bg-accent" aria-hidden />}
+                {active && <span className="absolute inset-x-3 -bottom-[13px] h-0.5 bg-accent" aria-hidden />}
               </Link>
             );
           })}
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
+          <LangToggle lang={lang} />
           {canSell && (
             <Link href="/sales/new" className="btn-primary">
               <Plus size={16} aria-hidden /> New sale
@@ -82,7 +85,7 @@ export function TopNav({ items, storeName, userName, roleLabel, canSell, logout 
           )}
           <details className="group relative">
             <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-full p-1 pr-2 hover:bg-surface-2" aria-label="Account menu">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent">{initials(userName)}</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-fg">{initials(userName)}</span>
               <ChevronDown size={16} className="text-ink-3 transition group-open:rotate-180" aria-hidden />
             </summary>
             <div className="card absolute right-0 z-40 mt-2 w-60 p-2">
@@ -105,7 +108,7 @@ export function TopNav({ items, storeName, userName, roleLabel, canSell, logout 
 }
 
 /** Phone header + bottom tab bar with a raised Sell button and a slide-up menu sheet. */
-export function MobileNav({ items, storeName, userName, roleLabel, canSell, logout }: { items: NavItem[]; storeName: string; userName: string; roleLabel: string; canSell: boolean; logout: () => Promise<void> }) {
+export function MobileNav({ items, storeName, userName, roleLabel, canSell, lang, logout }: { items: NavItem[]; storeName: string; userName: string; roleLabel: string; canSell: boolean; lang: Lang; logout: () => Promise<void> }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -131,9 +134,12 @@ export function MobileNav({ items, storeName, userName, roleLabel, canSell, logo
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-line bg-surface/85 px-4 py-3 backdrop-blur-md print:hidden lg:hidden">
-        <Logo storeName={storeName} />
-        <button type="button" onClick={() => setMenuOpen(true)} aria-label="Account and menu" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-line bg-bg/90 px-4 py-2.5 backdrop-blur-md print:hidden lg:hidden">
+        <div className="min-w-0 flex-1">
+          <Logo storeName={storeName} />
+        </div>
+        <LangToggle lang={lang} />
+        <button type="button" onClick={() => setMenuOpen(true)} aria-label="Account and menu" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-fg">
           {initials(userName)}
         </button>
       </header>
@@ -144,22 +150,17 @@ export function MobileNav({ items, storeName, userName, roleLabel, canSell, logo
             <Tab key={it.href} it={it} pathname={pathname} />
           ))}
           {canSell && (
-            <div className="flex justify-center">
-              <Link
-                href="/sales/new"
-                aria-label="New sale"
-                aria-current={sellActive ? "page" : undefined}
-                className={clsx("-mt-5 flex h-14 w-14 flex-col items-center justify-center rounded-2xl bg-accent text-accent-ink shadow-lg ring-4 ring-bg transition active:scale-95", sellActive && "bg-accent-strong")}
-              >
-                <ShoppingCart size={22} aria-hidden />
-                <span className="text-[10px] font-semibold">Sell</span>
-              </Link>
-            </div>
+            <Link href="/sales/new" aria-current={sellActive ? "page" : undefined} className="flex flex-col items-center gap-1 pb-2 pt-1.5 text-[11px] font-semibold text-accent-fg">
+              <span className={clsx("flex h-8 w-11 items-center justify-center rounded-[6px] bg-accent text-accent-ink transition active:scale-95", sellActive && "bg-accent-strong")}>
+                <ShoppingCart size={18} aria-hidden />
+              </span>
+              Sell
+            </Link>
           )}
           {right.map((it) => (
             <Tab key={it.href} it={it} pathname={pathname} />
           ))}
-          <button type="button" onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} className={clsx("flex flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium", menuOpen ? "text-accent" : "text-ink-3")}>
+          <button type="button" onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} className={clsx("flex flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium", menuOpen ? "text-accent-fg" : "text-ink-3")}>
             <Menu size={22} strokeWidth={1.75} aria-hidden />
             Menu
           </button>
@@ -172,7 +173,7 @@ export function MobileNav({ items, storeName, userName, roleLabel, canSell, logo
           <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-line bg-surface px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-2xl">
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong" aria-hidden />
             <div className="flex items-center gap-3 px-1">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-accent">{initials(userName)}</span>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-accent-fg">{initials(userName)}</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-semibold">{userName}</div>
                 <div className="truncate text-xs text-ink-3">
@@ -194,9 +195,9 @@ export function MobileNav({ items, storeName, userName, roleLabel, canSell, logo
                     key={it.href}
                     href={it.href}
                     onClick={() => setMenuOpen(false)}
-                    className={clsx("flex flex-col items-center gap-2 rounded-2xl border px-2 py-3.5 text-center text-xs font-medium transition active:scale-[0.97]", active ? "border-accent/40 bg-accent-soft text-accent" : "border-line text-ink-2")}
+                    className={clsx("flex flex-col items-center gap-2 rounded-2xl border px-2 py-3.5 text-center text-xs font-medium transition active:scale-[0.97]", active ? "border-accent/40 bg-accent-soft text-accent-fg" : "border-line text-ink-2")}
                   >
-                    <span className={clsx("flex h-10 w-10 items-center justify-center rounded-xl", active ? "bg-surface" : "bg-accent-soft text-accent")}>
+                    <span className={clsx("flex h-10 w-10 items-center justify-center rounded-xl", active ? "bg-surface" : "bg-accent-soft text-accent-fg")}>
                       <Icon size={20} aria-hidden />
                     </span>
                     {it.label}
@@ -221,7 +222,7 @@ function Tab({ it, pathname }: { it: NavItem; pathname: string }) {
   const Icon = ICONS[it.icon];
   const active = isActive(pathname, it.href);
   return (
-    <Link href={it.href} aria-current={active ? "page" : undefined} className={clsx("flex flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium", active ? "text-accent" : "text-ink-3")}>
+    <Link href={it.href} aria-current={active ? "page" : undefined} className={clsx("flex flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium", active ? "text-accent-fg" : "text-ink-3")}>
       <Icon size={22} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
       {it.short ?? it.label}
     </Link>

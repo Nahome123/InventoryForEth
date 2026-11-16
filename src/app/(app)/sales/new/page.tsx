@@ -19,7 +19,7 @@ export default async function NewSalePage() {
         <div className="card">
           <Empty>
             There are no products yet.{" "}
-            <Link href="/products/new" className="text-accent underline">
+            <Link href="/products/new" className="text-accent-fg underline">
               Add products
             </Link>{" "}
             first.
