@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { hashPassword, requireActionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { sessions, settings, userRole, users, type Role } from "@/lib/db/schema";
+import { saleOrigins, sessions, settings, userRole, users, type Role } from "@/lib/db/schema";
 import { errorMessage, UserError } from "@/lib/errors";
 import { isValidCurrency, isValidTimeZone } from "@/lib/locale";
 import type { ActionState } from "@/components/form";
@@ -97,6 +97,51 @@ export async function updateUserAction(userId: number, _: ActionState, fd: FormD
       if (userId !== me.id) await db.delete(sessions).where(eq(sessions.userId, userId));
     }
     revalidatePath("/settings");
+    return { ok: "Saved." };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
+function readOriginName(v: FormDataEntryValue | null) {
+  const name = String(v ?? "").trim().replace(/\s+/g, " ");
+  if (!name) throw new UserError("Enter a name, e.g. China supplier (Guangzhou Auto Parts).");
+  if (name.length > 80) throw new UserError("That name is too long.");
+  if (name.toLowerCase() === "store stock") throw new UserError("“Store stock” is already built in.");
+  return name;
+}
+
+async function assertOriginNameFree(name: string, exceptId?: number) {
+  const db = await getDb();
+  const [clash] = await db
+    .select({ id: saleOrigins.id })
+    .from(saleOrigins)
+    .where(and(sql`lower(${saleOrigins.name}) = lower(${name})`, exceptId ? ne(saleOrigins.id, exceptId) : undefined));
+  if (clash) throw new UserError(`There's already an origin called “${name}”.`);
+}
+
+export async function addOriginAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    await requireActionUser("manageSettings");
+    const name = readOriginName(fd.get("name"));
+    await assertOriginNameFree(name);
+    await (await getDb()).insert(saleOrigins).values({ name });
+    revalidatePath("/settings");
+    revalidatePath("/sales/new");
+    return { ok: `Added “${name}”.` };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
+export async function updateOriginAction(id: number, _: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    await requireActionUser("manageSettings");
+    const name = readOriginName(fd.get("name"));
+    await assertOriginNameFree(name, id);
+    await (await getDb()).update(saleOrigins).set({ name, active: fd.get("active") === "on" }).where(eq(saleOrigins.id, id));
+    revalidatePath("/settings");
+    revalidatePath("/sales/new");
     return { ok: "Saved." };
   } catch (e) {
     return { error: errorMessage(e) };

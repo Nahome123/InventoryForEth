@@ -6,20 +6,37 @@ import { getSettings } from "@/lib/analytics";
 import { allTimeZones, COMMON_CURRENCIES } from "@/lib/locale";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/permissions";
 import { Badge, PageHeader } from "@/components/ui";
-import { AddUserForm, EditUserForm, StoreSettingsForm } from "./forms";
+import { listOrigins } from "@/lib/profit";
+import { AddOriginForm, AddUserForm, EditOriginForm, EditUserForm, StoreSettingsForm } from "./forms";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const me = await requireUser("manageUsers");
   const db = await getDb();
-  const [s, people] = await Promise.all([getSettings(db), db.select().from(users).orderBy(asc(users.fullName))]);
+  const [s, people, origins] = await Promise.all([getSettings(db), db.select().from(users).orderBy(asc(users.fullName)), listOrigins(db)]);
   return (
     <div className="max-w-4xl space-y-6">
       <PageHeader title="Settings" />
       <section className="card p-5 sm:p-6">
         <h2 className="mb-3 text-lg font-semibold">Store</h2>
         <StoreSettingsForm initial={s} currencies={COMMON_CURRENCIES} timeZones={allTimeZones()} />
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">Item origins</h2>
+        <p className="mb-4 mt-1 text-sm text-ink-2">
+          When recording a sale, each item can be marked as coming from <strong>Store stock</strong> (the default) or from one of these suppliers. Profit is then
+          broken down by origin on the Profit page.
+        </p>
+        <ul className="mb-4 space-y-2">
+          {origins.map((o) => (
+            <li key={o.id}>
+              <EditOriginForm origin={o} />
+            </li>
+          ))}
+        </ul>
+        <AddOriginForm />
       </section>
 
       <section className="card p-5 sm:p-6">

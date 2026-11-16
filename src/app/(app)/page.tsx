@@ -3,6 +3,7 @@ import { and, asc, inArray } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { getDashboard, getRestockReport, getTopProducts } from "@/lib/analytics";
+import { getProfitSummary, periodRange, type ProfitSummary } from "@/lib/profit";
 import { customerOrders } from "@/lib/db/schema";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
@@ -27,10 +28,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       .orderBy(asc(customerOrders.dueDate))
       .limit(5),
   ]);
+  const showCosts = can(user.role, "viewCosts");
+  const tz = d.settings.timezone;
+  const [pMonth, pAll] = showCosts ? await Promise.all([getProfitSummary(db, tz, periodRange("month", tz)), getProfitSummary(db, tz, periodRange("all", tz))]) : [null, null];
   const cur = d.settings.currency;
   const money = (c: number) => formatMoney(c, cur);
   const urgent = restock.rows.filter((r) => r.forecast.urgency !== "ok").sort((a, b) => (a.forecast.urgency === b.forecast.urgency ? a.available - b.available : a.forecast.urgency === "order_now" ? -1 : 1));
-  const showCosts = can(user.role, "viewCosts");
   const short = (ymd: string) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(ymd + "T00:00:00Z"));
 
   return (
@@ -63,6 +66,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         )}
         <StatTile label="Open customer orders" value={d.openOrders} hint={d.ordersDueSoon ? `${d.ordersDueSoon} due within 3 days` : "None due soon"} href="/orders" />
       </div>
+
+      {pMonth && pAll && <ProfitCard month={pMonth} all={pAll} money={money} />}
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <section className="card p-5 sm:p-6 lg:col-span-2">
@@ -155,5 +160,49 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </section>
       </div>
     </>
+  );
+}
+
+function ProfitCard({ month, all, money }: { month: ProfitSummary; all: ProfitSummary; money: (c: number) => string }) {
+  const cols = [
+    { label: "This month", p: month, href: "/profit?period=month" },
+    { label: "All time", p: all, href: "/profit?period=all" },
+  ];
+  return (
+    <section className="card mt-5 p-5 sm:p-6">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Profit</h2>
+        <Link href="/profit" className="text-sm font-semibold text-accent-fg hover:underline">
+          Details &amp; expenses
+        </Link>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+        {cols.map(({ label, p, href }) => (
+          <Link key={label} href={href} className="block rounded-xl border border-line p-4 transition hover:border-accent/40">
+            <div className="eyebrow mb-2">{label}</div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div>
+                <dt className="text-xs text-ink-3">Revenue</dt>
+                <dd className="font-semibold tabular-nums">{money(p.revenue)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-ink-3">Expenses</dt>
+                <dd className="font-semibold tabular-nums">{money(p.expenses)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-ink-3">Gross profit</dt>
+                <dd className={`font-display text-xl font-semibold tabular-nums ${p.gross < 0 ? "text-bad" : "text-accent-fg"}`}>{money(p.gross)}</dd>
+                {p.grossMarginPct !== null && <dd className="text-xs text-ink-3">{`${p.grossMarginPct}% margin`}</dd>}
+              </div>
+              <div>
+                <dt className="text-xs text-ink-3">Net profit</dt>
+                <dd className={`font-display text-xl font-semibold tabular-nums ${p.net < 0 ? "text-bad" : "text-good"}`}>{money(p.net)}</dd>
+                {p.netMarginPct !== null && <dd className="text-xs text-ink-3">{`${p.netMarginPct}% margin`}</dd>}
+              </div>
+            </dl>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }

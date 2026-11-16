@@ -1,7 +1,7 @@
 "use client";
 
 import { Field, FormMessage, SubmitButton, useActionForm } from "@/components/form";
-import { addUserAction, saveSettingsAction, updateUserAction } from "./actions";
+import { addOriginAction, addUserAction, saveSettingsAction, updateOriginAction, updateUserAction } from "./actions";
 
 const ROLES = [
   ["cashier", "Sales staff"],
@@ -111,6 +111,42 @@ export function EditUserForm({ user, isMe }: { user: { id: number; fullName: str
       <SubmitButton pending={pending} className="btn-secondary">Save</SubmitButton>
       {(state?.error || state?.ok) && (
         <div className="sm:col-span-5">
+          <FormMessage state={state} />
+        </div>
+      )}
+    </form>
+  );
+}
+
+export function AddOriginForm() {
+  const { state, onSubmit, pending } = useActionForm(addOriginAction, null);
+  return (
+    <form onSubmit={onSubmit} className="space-y-2" key={state?.ok}>
+      <FormMessage state={state} />
+      <div className="flex gap-2">
+        <input className="input flex-1" name="name" placeholder="China supplier (name)" aria-label="New origin name" required />
+        <SubmitButton pending={pending} className="btn-secondary">
+          Add
+        </SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+export function EditOriginForm({ origin }: { origin: { id: number; name: string; active: boolean } }) {
+  const { state, onSubmit, pending } = useActionForm(updateOriginAction.bind(null, origin.id), null);
+  return (
+    <form onSubmit={onSubmit} className="grid items-center gap-2 sm:grid-cols-[1fr_auto_auto]">
+      <input className="input" name="name" defaultValue={origin.name} aria-label="Origin name" required translate="no" />
+      <label className="flex min-h-10 items-center gap-2 text-sm">
+        <input type="checkbox" name="active" defaultChecked={origin.active} />
+        Show on sales
+      </label>
+      <SubmitButton pending={pending} className="btn-secondary">
+        Save
+      </SubmitButton>
+      {(state?.error || state?.ok) && (
+        <div className="sm:col-span-3">
           <FormMessage state={state} />
         </div>
       )}

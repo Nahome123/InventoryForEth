@@ -15,7 +15,9 @@ export type PickProduct = {
   unit: string;
 };
 
-export type CartLine = { productId: number; quantity: number };
+/** originId: where the item came from; null/undefined = store stock (sales only). */
+export type CartLine = { productId: number; quantity: number; originId?: number | null };
+export type OriginOption = { id: number; name: string };
 
 export function fmtMoney(cents: number, currency: string) {
   try {
@@ -40,6 +42,9 @@ export function useCart() {
     },
     setQty(productId: number, qty: number) {
       setLines((ls) => ls.map((l) => (l.productId === productId ? { ...l, quantity: Math.max(1, Math.floor(qty) || 1) } : l)));
+    },
+    setOrigin(productId: number, originId: number | null) {
+      setLines((ls) => ls.map((l) => (l.productId === productId ? { ...l, originId } : l)));
     },
     remove(productId: number) {
       setLines((ls) => ls.filter((l) => l.productId !== productId));
@@ -125,7 +130,9 @@ export function CartLines({
   cart,
   currency,
   mode,
+  origins,
 }: {
+  origins?: OriginOption[];
   lines: CartLine[];
   products: Map<number, PickProduct>;
   cart: ReturnType<typeof useCart>;
@@ -151,6 +158,24 @@ export function CartLines({
               {over && <div className="text-xs font-semibold text-bad">{`Only ${p.onHand} in stock`}</div>}
               {intoReserved && <div className="text-xs text-warn">Uses stock reserved for customer orders</div>}
               {short && <div className="text-xs text-warn">{`${l.quantity - Math.max(0, p.available)} short. You'll need to restock.`}</div>}
+              {origins && origins.length > 0 && (
+                <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-2">
+                  <span className="shrink-0">From</span>
+                  <select
+                    className="input min-h-8! w-auto! py-1! pr-8 text-xs!"
+                    aria-label={`Where ${p.name} came from`}
+                    value={l.originId ?? ""}
+                    onChange={(e) => cart.setOrigin(l.productId, e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <option value="">Store stock</option>
+                    {origins.map((o) => (
+                      <option key={o.id} value={o.id} translate="no">
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <button type="button" className="btn-secondary min-h-9 px-2" aria-label="Decrease" onClick={() => (l.quantity <= 1 ? cart.remove(l.productId) : cart.setQty(l.productId, l.quantity - 1))}>

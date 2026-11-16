@@ -140,6 +140,14 @@ export const sales = pgTable(
   (t) => [index("sales_sold_at_idx").on(t.soldAt), check("sales_discount_valid", sql`${t.discountCents} >= 0 and ${t.discountCents} <= ${t.subtotalCents}`)],
 );
 
+/** Where a sold item came from (e.g. a China supplier). A sale line with no origin came from store stock. */
+export const saleOrigins = pgTable("sale_origins", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  active: boolean("active").notNull().default(true),
+  createdAt: createdAt(),
+});
+
 export const saleItems = pgTable(
   "sale_items",
   {
@@ -154,6 +162,8 @@ export const saleItems = pgTable(
     unitPriceCents: integer("unit_price_cents").notNull(),
     unitCostCents: integer("unit_cost_cents").notNull().default(0),
     lineTotalCents: integer("line_total_cents").notNull(),
+    /** Null = store stock. */
+    originId: integer("origin_id").references(() => saleOrigins.id, { onDelete: "restrict" }),
   },
   (t) => [index("sale_items_sale_idx").on(t.saleId), index("sale_items_product_idx").on(t.productId), check("sale_items_qty_positive", sql`${t.quantity} > 0`)],
 );
@@ -190,6 +200,21 @@ export const orderItems = pgTable(
     unitPriceCents: integer("unit_price_cents").notNull(),
   },
   (t) => [index("order_items_order_idx").on(t.orderId), index("order_items_product_idx").on(t.productId), check("order_items_qty_positive", sql`${t.quantity} > 0`)],
+);
+
+/** Running costs (rent, salaries, freight, customs...). Subtracted from gross profit to get net profit. */
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: serial("id").primaryKey(),
+    spentOn: date("spent_on").notNull(),
+    category: text("category").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    note: text("note"),
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("expenses_spent_on_idx").on(t.spentOn), check("expenses_amount_positive", sql`${t.amountCents} > 0`)],
 );
 
 export type Role = (typeof userRole.enumValues)[number];

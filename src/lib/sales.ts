@@ -1,10 +1,11 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { Executor, Tx } from "./db/client";
-import { customerOrders, paymentMethod as paymentMethodEnum, products, saleItems, sales, stockMovements, type PaymentMethod } from "./db/schema";
+import { customerOrders, paymentMethod as paymentMethodEnum, products, saleItems, saleOrigins, sales, stockMovements, type PaymentMethod } from "./db/schema";
 import { UserError } from "./errors";
 import { applyMovement } from "./inventory";
 
-export type SaleLineInput = { productId: number; quantity: number; unitPriceCents?: number };
+/** originId: where the item came from (a supplier); null/omitted = store stock. */
+export type SaleLineInput = { productId: number; quantity: number; unitPriceCents?: number; originId?: number | null };
 
 export type CreateSaleInput = {
   items: SaleLineInput[];
@@ -33,7 +34,7 @@ export async function createSaleTx(tx: Tx, input: CreateSaleInput) {
   const merged = new Map<string, SaleLineInput>();
   for (const it of input.items) {
     if (!Number.isInteger(it.quantity) || it.quantity <= 0) throw new UserError("Each quantity must be a whole number of at least 1.");
-    const key = `${it.productId}:${it.unitPriceCents ?? ""}`;
+    const key = `${it.productId}:${it.unitPriceCents ?? ""}:${it.originId ?? ""}`;
     const prev = merged.get(key);
     merged.set(key, prev ? { ...prev, quantity: prev.quantity + it.quantity } : { ...it });
   }
@@ -42,6 +43,11 @@ export async function createSaleTx(tx: Tx, input: CreateSaleInput) {
   const ids = [...new Set(lines.map((l) => l.productId))];
   const prods = await tx.select().from(products).where(inArray(products.id, ids));
   const byId = new Map(prods.map((p) => [p.id, p]));
+  const originIds = [...new Set(lines.map((l) => l.originId).filter((o): o is number => !!o))];
+  if (originIds.length) {
+    const found = await tx.select({ id: saleOrigins.id }).from(saleOrigins).where(inArray(saleOrigins.id, originIds));
+    if (found.length !== originIds.length) throw new UserError("One of the chosen item origins no longer exists.");
+  }
 
   const priced = lines.map((l) => {
     const p = byId.get(l.productId);
@@ -49,7 +55,7 @@ export async function createSaleTx(tx: Tx, input: CreateSaleInput) {
     if (!p.active && !input.allowInactive) throw new UserError(`"${p.name}" is deactivated and can't be sold.`);
     const unit = l.unitPriceCents ?? p.sellPriceCents;
     if (!Number.isInteger(unit) || unit < 0) throw new UserError("Invalid price.");
-    return { product: p, quantity: l.quantity, unitPriceCents: unit, lineTotalCents: unit * l.quantity };
+    return { product: p, quantity: l.quantity, unitPriceCents: unit, lineTotalCents: unit * l.quantity, originId: l.originId ?? null };
   });
 
   const subtotal = priced.reduce((s, l) => s + l.lineTotalCents, 0);
@@ -81,6 +87,7 @@ export async function createSaleTx(tx: Tx, input: CreateSaleInput) {
       unitPriceCents: l.unitPriceCents,
       unitCostCents: l.product.costPriceCents,
       lineTotalCents: l.lineTotalCents,
+      originId: l.originId,
     })),
   );
 

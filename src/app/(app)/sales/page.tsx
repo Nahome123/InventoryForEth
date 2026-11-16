@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db";
 import { products, users } from "@/lib/db/schema";
 import { getSettings } from "@/lib/analytics";
 import { listSales, type SalesFilter } from "@/lib/sales-query";
+import { listOrigins } from "@/lib/profit";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
 import { formatDateTime, PAYMENT_LABELS, saleNo } from "@/lib/format";
@@ -20,10 +21,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   const db = await getDb();
   const s = await getSettings(db);
   const page = Math.max(1, Number(sp.page) || 1);
-  const [{ rows, count, revenue, completed }, prods, staff] = await Promise.all([
+  const [{ rows, count, revenue, completed }, prods, staff, origins] = await Promise.all([
     listSales(db, sp, s.timezone, PAGE, (page - 1) * PAGE),
     db.select({ id: products.id, name: products.name }).from(products).orderBy(asc(products.name)),
     db.select({ id: users.id, name: users.fullName }).from(users).orderBy(asc(users.fullName)),
+    listOrigins(db),
   ]);
   const filters = Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && k !== "page")) as Record<string, string>;
   const qs = (p: number) => "?" + new URLSearchParams({ ...filters, page: String(p) }).toString();
@@ -88,6 +90,15 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
           <option value="order">Customer order</option>
           <option value="import">Imported</option>
         </select>
+        <select className="input" name="origin" defaultValue={sp.origin ?? ""} aria-label="Item origin">
+          <option value="">Any origin</option>
+          <option value="store">Store stock</option>
+          {origins.map((o) => (
+            <option key={o.id} value={o.id} translate="no">
+              {o.name}
+            </option>
+          ))}
+        </select>
         <div className="flex gap-2">
           <button className="btn-primary flex-1">Search</button>
           <Link className="btn-secondary" href="/sales">
@@ -134,6 +145,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                           { label: "Original price", value: money(one.originalCents) },
                           { label: "Sold unit price", value: money(one.soldCents), className: "font-semibold" },
                           { label: "Qty", value: one.qty },
+                          { label: "From", value: <span translate="no">{one.origin ?? "Store stock"}</span> },
                         ]
                       : [
                           { label: "Products", value: ls.length },
@@ -148,6 +160,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                           <div key={i} className="flex w-full justify-between gap-3 text-xs text-ink-2">
                             <span className="truncate" translate="no">
                               {l.name}
+                              {l.origin && <span className="text-ink-3">{` · ${l.origin}`}</span>}
                             </span>
                             <span className="shrink-0 tabular-nums">
                               {money(l.originalCents)} → {money(l.soldCents)} · {l.qty}
@@ -186,7 +199,14 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                   <tr key={sale.id} className={`align-top hover:bg-surface-2 ${sale.status === "voided" ? "text-ink-3" : ""}`}>
                     <td className="max-w-xs">
                       <Link href={`/sales/${sale.id}`} className="block font-medium hover:underline" translate="no">
-                        {ls.length ? ls.map((l, i) => <div key={i} className="truncate leading-6">{l.name}</div>) : "—"}
+                        {ls.length
+                          ? ls.map((l, i) => (
+                              <div key={i} className="truncate leading-6">
+                                {l.name}
+                                {l.origin && <span className="ml-1.5 rounded bg-accent-soft px-1.5 py-0.5 text-[11px] font-normal text-accent-fg">{l.origin}</span>}
+                              </div>
+                            ))
+                          : "—"}
                       </Link>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-3">
                         <span className="font-mono">{saleNo(sale.id)}</span>

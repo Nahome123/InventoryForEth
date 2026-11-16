@@ -2,7 +2,7 @@ import { z } from "zod";
 import { UserError } from "./errors";
 
 export const linesSchema = z
-  .array(z.object({ productId: z.number().int().positive(), quantity: z.number().int().positive("Quantities must be at least 1.") }))
+  .array(z.object({ productId: z.number().int().positive(), quantity: z.number().int().positive("Quantities must be at least 1."), originId: z.number().int().positive().nullable().optional() }))
   .min(1, "Add at least one product.")
   .max(500, "Too many lines.");
 

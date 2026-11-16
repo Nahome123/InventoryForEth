@@ -7,9 +7,9 @@ import clsx from "clsx";
 import { LangToggle } from "./lang-toggle";
 import { ThemeToggle } from "./theme-toggle";
 import type { Lang, Theme } from "@/lib/i18n/lang";
-import { BarChart3, Boxes, ChevronDown, ClipboardList, LayoutDashboard, LogOut, Menu, Package, Plus, Receipt, Settings, ShoppingCart, Store, Upload, X } from "lucide-react";
+import { BarChart3, Boxes, ChevronDown, ClipboardList, LayoutDashboard, LogOut, Menu, Package, Plus, Receipt, Settings, ShoppingCart, Store, Upload, Wallet, X } from "lucide-react";
 
-const ICONS = { LayoutDashboard, ShoppingCart, Receipt, ClipboardList, Package, Boxes, BarChart3, Upload, Settings };
+const ICONS = { LayoutDashboard, ShoppingCart, Receipt, ClipboardList, Package, Boxes, BarChart3, Upload, Settings, Wallet };
 export type NavItem = { href: string; label: string; short?: string; icon: keyof typeof ICONS; mobile?: boolean };
 
 function isActive(pathname: string, href: string) {

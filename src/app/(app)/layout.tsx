@@ -14,6 +14,7 @@ const NAV: (NavItem & { perm?: Permission })[] = [
   { href: "/orders", label: "Customer orders", short: "Orders", icon: "ClipboardList", mobile: true, perm: "manageOrders" },
   { href: "/products", label: "Products", icon: "Package", mobile: true, perm: "viewInventory" },
   { href: "/inventory", label: "Inventory", icon: "Boxes", perm: "viewInventory" },
+  { href: "/profit", label: "Profit", icon: "Wallet", perm: "viewCosts" },
   { href: "/analytics", label: "Demand & restock", short: "Analytics", icon: "BarChart3", perm: "viewAnalytics" },
   { href: "/import", label: "Import / export", short: "Import", icon: "Upload", perm: "importExport" },
   { href: "/settings", label: "Settings", icon: "Settings", perm: "manageUsers" },

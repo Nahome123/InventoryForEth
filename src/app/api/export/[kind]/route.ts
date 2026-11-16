@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { categories, products, saleItems, sales, stockMovements, users } from "@/lib/db/schema";
+import { categories, products, saleItems, saleOrigins, sales, stockMovements, users } from "@/lib/db/schema";
 import { getRestockReport, getSettings } from "@/lib/analytics";
 import { getStockLevels } from "@/lib/inventory";
 import { PRODUCT_TEMPLATE, SALES_TEMPLATE, toCsv } from "@/lib/import";
@@ -98,10 +98,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ kind
     }
     case "sale-items": {
       const rows = await db
-        .select({ item: saleItems, sale: sales, sku: products.sku, name: products.name })
+        .select({ item: saleItems, sale: sales, sku: products.sku, name: products.name, origin: saleOrigins.name })
         .from(saleItems)
         .innerJoin(sales, eq(sales.id, saleItems.saleId))
         .innerJoin(products, eq(products.id, saleItems.productId))
+        .leftJoin(saleOrigins, eq(saleOrigins.id, saleItems.originId))
         .where(and(eq(sales.status, "completed")))
         .orderBy(sql`${sales.soldAt} asc nulls first`, asc(saleItems.id));
       // Same columns as the sales import template, so it can be re-imported elsewhere.
@@ -119,6 +120,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ kind
             unit_cost: money(r.item.unitCostCents),
             payment_method: r.sale.paymentMethod,
             customer: r.sale.customerName ?? "",
+            origin: r.origin ?? "Store stock",
           })),
         ),
       );

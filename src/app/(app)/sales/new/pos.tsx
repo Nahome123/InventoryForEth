@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { CartLines, fmtMoney, ProductSearch, useCart, type PickProduct } from "@/components/cart";
+import { CartLines, fmtMoney, ProductSearch, useCart, type OriginOption, type PickProduct } from "@/components/cart";
 import { Field, FormMessage, SubmitButton, useActionForm } from "@/components/form";
 import { createSaleAction } from "../actions";
 
@@ -23,7 +23,7 @@ function toCents(s: string): number | null {
   return Math.round(Number(t) * 100);
 }
 
-export function PointOfSale({ products, currency }: { products: PickProduct[]; currency: string }) {
+export function PointOfSale({ products, currency, origins }: { products: PickProduct[]; currency: string; origins: OriginOption[] }) {
   const cart = useCart();
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const { state, onSubmit, pending } = useActionForm(createSaleAction, null);
@@ -66,7 +66,7 @@ export function PointOfSale({ products, currency }: { products: PickProduct[]; c
           </div>
         )}
         <ProductSearch products={products} currency={currency} onPick={(p) => cart.add(p.id)} />
-        <CartLines lines={cart.lines} products={byId} cart={cart} currency={currency} mode="sale" />
+        <CartLines lines={cart.lines} products={byId} cart={cart} currency={currency} mode="sale" origins={origins} />
       </div>
 
       <form id="checkout" onSubmit={onSubmit} key={formKey} className="card h-fit scroll-mt-20 space-y-4 p-5 sm:p-6 lg:sticky lg:top-24">

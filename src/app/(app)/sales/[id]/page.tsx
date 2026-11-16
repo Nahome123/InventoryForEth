@@ -4,7 +4,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { products, saleItems, sales, users } from "@/lib/db/schema";
+import { products, saleItems, saleOrigins, sales, users } from "@/lib/db/schema";
 import { getSettings } from "@/lib/analytics";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
@@ -27,9 +27,10 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
   if (!row) notFound();
   const [items, s] = await Promise.all([
     db
-      .select({ item: saleItems, name: products.name, sku: products.sku })
+      .select({ item: saleItems, name: products.name, sku: products.sku, origin: saleOrigins.name })
       .from(saleItems)
       .innerJoin(products, eq(products.id, saleItems.productId))
+      .leftJoin(saleOrigins, eq(saleOrigins.id, saleItems.originId))
       .where(eq(saleItems.saleId, id))
       .orderBy(saleItems.id),
     getSettings(db),
@@ -87,13 +88,18 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
             </tr>
           </thead>
           <tbody>
-            {items.map(({ item, name, sku }) => (
+            {items.map(({ item, name, sku, origin }) => (
               <tr key={item.id}>
                 <td>
                   <Link href={`/products/${item.productId}`} className="hover:underline print:no-underline">
                     {name}
                   </Link>
                   <div className="font-mono text-xs text-ink-3">{sku}</div>
+                  {origin && (
+                    <div className="text-xs text-accent-fg print:hidden" translate="no">
+                      {`From ${origin}`}
+                    </div>
+                  )}
                 </td>
                 <td className="num">{item.quantity}</td>
                 <td className="num">{money(item.unitPriceCents)}</td>
