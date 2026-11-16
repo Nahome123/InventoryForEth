@@ -1,6 +1,6 @@
 import { and, desc, eq, exists, ilike, or, sql, type SQL } from "drizzle-orm";
 import type { Executor } from "./db/client";
-import { paymentMethod, saleItems, sales, users, type PaymentMethod } from "./db/schema";
+import { paymentMethod, products, saleItems, sales, users, type PaymentMethod } from "./db/schema";
 
 export type SalesFilter = { from?: string; to?: string; method?: string; status?: string; product?: string; user?: string; q?: string; source?: string };
 
@@ -12,6 +12,7 @@ export function salesWhere(f: SalesFilter, tz: string): SQL | undefined {
   const userId = Number(f.user) || null;
   const q = (f.q ?? "").trim();
   const idFromQ = /^s?-?0*(\d+)$/i.exec(q)?.[1];
+  const like = `%${q.replace(/[%_\\]/g, "\\$&")}%`;
   return and(
     isDate(f.from) ? sql`${local} >= ${f.from}::date` : undefined,
     isDate(f.to) ? sql`${local} <= ${f.to}::date` : undefined,
@@ -24,7 +25,15 @@ export function salesWhere(f: SalesFilter, tz: string): SQL | undefined {
           sql`select 1 from ${saleItems} where ${saleItems.saleId} = ${sales.id} and ${saleItems.productId} = ${productId}`,
         )
       : undefined,
-    q ? or(ilike(sales.customerName, `%${q.replace(/[%_\\]/g, "\\$&")}%`), idFromQ ? eq(sales.id, Number(idFromQ)) : undefined) : undefined,
+    q
+      ? or(
+          ilike(sales.customerName, like),
+          exists(
+            sql`select 1 from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} where ${saleItems.saleId} = ${sales.id} and (${products.name} ilike ${like} or ${products.sku} ilike ${like})`,
+          ),
+          idFromQ ? eq(sales.id, Number(idFromQ)) : undefined,
+        )
+      : undefined,
   );
 }
 
@@ -36,6 +45,8 @@ export async function listSales(db: Executor, f: SalesFilter, tz: string, limit:
         sale: sales,
         by: users.fullName,
         items: sql<number>`(select coalesce(sum(${saleItems.quantity}),0)::int from ${saleItems} where ${saleItems.saleId} = ${sales.id})`,
+        /** e.g. "Oil filter ×24, Relay" */
+        productNames: sql<string | null>`(select string_agg(${products.name} || case when ${saleItems.quantity} > 1 then ' ×' || ${saleItems.quantity} else '' end, ', ' order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} where ${saleItems.saleId} = ${sales.id})`,
       })
       .from(sales)
       .leftJoin(users, eq(users.id, sales.userId))

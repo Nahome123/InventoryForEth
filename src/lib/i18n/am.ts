@@ -286,6 +286,9 @@ export const AM: Record<string, string> = {
 
   // Sales history
   "Sale # or customer": "የሽያጭ ቁጥር ወይም ደንበኛ",
+  "Search & filters": "ፍለጋና ማጣሪያዎች",
+  "Product, customer or sale #": "ምርት፣ ደንበኛ ወይም የሽያጭ ቁጥር",
+  "Product, customer or sale number": "ምርት፣ ደንበኛ ወይም የሽያጭ ቁጥር",
   "Sale number or customer": "የሽያጭ ቁጥር ወይም ደንበኛ",
   "Any product": "ማንኛውም ምርት",
   "Any payment": "ማንኛውም ክፍያ",
@@ -463,6 +466,7 @@ export const AM_PATTERNS: Pattern[] = [
   [/^Cost (.+)$/, (m) => `ወጪ ${m[1]}`],
   [/^balance (-?\d+)$/, (m) => `ቀሪ ${m[1]}`],
   [/^More filters · (\d+) on$/, (m) => `ተጨማሪ ማጣሪያዎች · ${m[1]} በርቷል`],
+  [/^(\d+) on$/, (m) => `${m[1]} በርቷል`],
   [/^Page (\d+)$/, (m) => `ገጽ ${m[1]}`],
   [/^(-?\d+) available$/, (m) => `${m[1]} የሚገኝ`],
   [/^(\d+) reserved$/, (m) => `${m[1]} የተያዘ`],
