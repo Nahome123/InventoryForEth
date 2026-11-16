@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/analytics";
 import { getStockLevels } from "@/lib/inventory";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
+import { SuggestInput } from "@/components/suggest-input";
 import { Empty, MobileCard, MobileList, PageHeader, StatTile, StockBadge, TableWrap } from "@/components/ui";
 
 export const metadata = { title: "Inventory" };
@@ -53,7 +54,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
       </div>
 
       <form className="my-5 grid grid-cols-[1fr_auto] gap-2 sm:flex sm:flex-wrap" role="search">
-        <input className="input col-span-2 sm:max-w-xs" name="q" type="search" defaultValue={sp.q} placeholder="Search or scan" aria-label="Search" />
+        <SuggestInput className="col-span-2 sm:max-w-xs" name="q" defaultValue={sp.q} placeholder="Search or scan" ariaLabel="Search" suggestions={levels.flatMap((l) => [{ value: l.name, label: l.name, sub: l.sku }, { value: l.sku, label: l.sku, sub: l.name }])} />
         <select className="input sm:w-auto" name="status" defaultValue={status} aria-label="Status">
           <option value="attention">Low or out of stock</option>
           <option value="out">Out of stock</option>
@@ -66,7 +67,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
 
       {rows.length === 0 ? (
         <TableWrap>
-          <Empty>{status === "attention" ? "Every product is above its reorder level. 👍" : "No products match."}</Empty>
+          <Empty>{status === "attention" ? "Every product is above its reorder level. 👍" : sp.q ? `Not found: no product matches “${sp.q}”.` : "No products match."}</Empty>
         </TableWrap>
       ) : (
         <>

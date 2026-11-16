@@ -1,35 +1,137 @@
 import Link from "next/link";
+import clsx from "clsx";
 import { asc } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
 import { getSettings } from "@/lib/analytics";
 import { getStockLevels } from "@/lib/inventory";
+import { listOrigins } from "@/lib/profit";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
 import { Badge, Empty, MobileCard, MobileList, PageHeader, StockBadge, TableWrap } from "@/components/ui";
 import { Filters } from "@/components/filters";
+import { SuggestInput, type Suggestion } from "@/components/suggest-input";
+import { SupplierLabeler } from "./supplier-label";
 
 export const metadata = { title: "Products" };
 
-type SP = { q?: string; category?: string; show?: string; stock?: string };
+type SP = { q?: string; category?: string; show?: string; stock?: string; supplier?: string };
+const NO_SUPPLIER = "__none";
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await requireUser("viewInventory");
   const sp = await searchParams;
   const db = await getDb();
   const show = sp.show ?? "active";
-  const [levels, cats, s] = await Promise.all([getStockLevels(db, { includeInactive: show !== "active" }), db.select().from(categories).orderBy(asc(categories.name)), getSettings(db)]);
+  const [levels, cats, s, origins] = await Promise.all([
+    getStockLevels(db, { includeInactive: show !== "active" }),
+    db.select().from(categories).orderBy(asc(categories.name)),
+    getSettings(db),
+    listOrigins(db),
+  ]);
   const catName = new Map(cats.map((c) => [c.id, c.name]));
   const q = (sp.q ?? "").trim().toLowerCase();
+
+  // Supplier buttons: every supplier used on a product, with a count.
+  const supplierCounts = new Map<string, number>();
+  let unlabelled = 0;
+  for (const p of levels) {
+    if (show === "inactive" && p.active) continue;
+    if (p.supplier) supplierCounts.set(p.supplier, (supplierCounts.get(p.supplier) ?? 0) + 1);
+    else unlabelled++;
+  }
+  const supplierNames = [...supplierCounts.keys()].sort((a, b) => a.localeCompare(b));
+
   const rows = levels.filter(
     (p) =>
       (show !== "inactive" || !p.active) &&
-      (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.barcode ?? "").includes(q) || (p.supplier ?? "").toLowerCase().includes(q)) &&
+      (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.barcode ?? "").toLowerCase().includes(q) || (p.supplier ?? "").toLowerCase().includes(q)) &&
       (!sp.category || String(p.categoryId) === sp.category) &&
+      (!sp.supplier || (sp.supplier === NO_SUPPLIER ? !p.supplier : p.supplier === sp.supplier)) &&
       (!sp.stock || (sp.stock === "low" ? p.status !== "ok" : p.status === sp.stock)),
   );
-  const showCosts = can(user.role, "viewCosts");
+  const canEdit = can(user.role, "manageProducts");
+  const suggestions: Suggestion[] = levels.flatMap((p) => [
+    { value: p.name, label: p.name, sub: p.sku },
+    { value: p.sku, label: p.sku, sub: p.name },
+  ]);
+  const href = (patch: Partial<SP>) => {
+    const next = Object.fromEntries(Object.entries({ ...sp, ...patch }).filter(([, v]) => v)) as Record<string, string>;
+    const qs = new URLSearchParams(next).toString();
+    return qs ? `/products?${qs}` : "/products";
+  };
+  const chip = (active: boolean) =>
+    clsx("whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition", active ? "border-accent bg-accent-soft text-accent-fg" : "border-line-strong text-ink-2 hover:bg-surface-2");
+
+  const list =
+    rows.length === 0 ? (
+      <TableWrap>
+        <Empty>{levels.length === 0 ? "No products yet. Add your first product or import a CSV." : sp.q ? `Not found: no product matches “${sp.q}”.` : "No products match these filters."}</Empty>
+      </TableWrap>
+    ) : (
+      <>
+        <MobileList>
+          {rows.map((p) => (
+            <MobileCard
+              key={p.id}
+              href={`/products/${p.id}`}
+              title={p.name}
+              subtitle={
+                <>
+                  <span className="font-mono">{p.sku}</span>
+                  {p.supplier ? ` · ${p.supplier}` : ""}
+                  {p.categoryId ? ` · ${catName.get(p.categoryId)}` : ""}
+                </>
+              }
+              aside={formatMoney(p.sellPriceCents, s.currency)}
+              facts={[
+                { label: "Reserved", value: p.committed || "—" },
+                { label: "Available", value: p.available, className: p.available <= 0 ? "text-bad" : "font-semibold" },
+              ]}
+              footer={p.active ? <StockBadge status={p.status} /> : <Badge>Deactivated</Badge>}
+            />
+          ))}
+        </MobileList>
+        <div className="hidden sm:block">
+          <TableWrap>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th className="hidden md:table-cell">Supplier</th>
+                  <th className="hidden lg:table-cell">Category</th>
+                  <th className="num">Price</th>
+                  <th className="num">Reserved</th>
+                  <th className="num">Available</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((p) => (
+                  <tr key={p.id} className="hover:bg-surface-2">
+                    <td>
+                      <Link href={`/products/${p.id}`} className="font-medium hover:underline">
+                        {p.name}
+                      </Link>
+                      <div className="font-mono text-xs text-ink-3">{p.sku}</div>
+                    </td>
+                    <td className="hidden md:table-cell" translate="no">
+                      {p.supplier ? <Badge>{p.supplier}</Badge> : <span className="text-ink-3">—</span>}
+                    </td>
+                    <td className="hidden text-ink-2 lg:table-cell">{p.categoryId ? catName.get(p.categoryId) : "—"}</td>
+                    <td className="num">{formatMoney(p.sellPriceCents, s.currency)}</td>
+                    <td className="num text-ink-2">{p.committed || "—"}</td>
+                    <td className="num font-semibold">{p.available}</td>
+                    <td>{p.active ? <StockBadge status={p.status} /> : <Badge>Deactivated</Badge>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        </div>
+      </>
+    );
 
   return (
     <>
@@ -37,7 +139,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         title="Products"
         subtitle={`${rows.length} of ${levels.length} products`}
         actions={
-          can(user.role, "manageProducts") && (
+          canEdit && (
             <>
               <Link href="/import" className="btn-secondary">
                 Import CSV
@@ -50,100 +152,59 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         }
       />
       <Filters active={[sp.category, sp.stock, show !== "active" ? show : ""].filter(Boolean).length}>
-      <form className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto_auto]" role="search">
-        <input className="input" name="q" defaultValue={sp.q} placeholder="Search name, SKU, barcode or supplier" aria-label="Search products" type="search" />
-        <select className="input filter-extra" name="category" defaultValue={sp.category ?? ""} aria-label="Category">
-          <option value="">All categories</option>
-          {cats.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select className="input filter-extra" name="stock" defaultValue={sp.stock ?? ""} aria-label="Stock status">
-          <option value="">Any stock</option>
-          <option value="low">Low or out</option>
-          <option value="out">Out of stock</option>
-          <option value="ok">In stock</option>
-        </select>
-        <select className="input filter-extra" name="show" defaultValue={show} aria-label="Active status">
-          <option value="active">Active</option>
-          <option value="inactive">Deactivated</option>
-          <option value="all">All</option>
-        </select>
-        <button className="btn-secondary filter-extra" type="submit">
-          Filter
-        </button>
-      </form>
+        <form className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto_auto]" role="search">
+          {sp.supplier && <input type="hidden" name="supplier" value={sp.supplier} />}
+          <SuggestInput name="q" defaultValue={sp.q} placeholder="Search name, part no., barcode or supplier" ariaLabel="Search products" suggestions={suggestions} />
+          <select className="input filter-extra" name="category" defaultValue={sp.category ?? ""} aria-label="Category">
+            <option value="">All categories</option>
+            {cats.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select className="input filter-extra" name="stock" defaultValue={sp.stock ?? ""} aria-label="Stock status">
+            <option value="">Any stock</option>
+            <option value="low">Low or out</option>
+            <option value="out">Out of stock</option>
+            <option value="ok">In stock</option>
+          </select>
+          <select className="input filter-extra" name="show" defaultValue={show} aria-label="Active status">
+            <option value="active">Active</option>
+            <option value="inactive">Deactivated</option>
+            <option value="all">All</option>
+          </select>
+          <button className="btn-secondary filter-extra" type="submit">
+            Filter
+          </button>
+        </form>
       </Filters>
 
-      {rows.length === 0 ? (
-        <TableWrap>
-          <Empty>{levels.length === 0 ? "No products yet. Add your first product or import a CSV." : "No products match these filters."}</Empty>
-        </TableWrap>
+      <nav className="-mt-2 mb-4 flex gap-2 overflow-x-auto pb-1" aria-label="Filter by supplier">
+        <Link href={href({ supplier: undefined })} className={chip(!sp.supplier)}>
+          All suppliers
+        </Link>
+        {supplierNames.map((name) => (
+          <Link key={name} href={href({ supplier: name })} className={chip(sp.supplier === name)} translate="no">
+            {`${name} · ${supplierCounts.get(name)}`}
+          </Link>
+        ))}
+        {unlabelled > 0 && (
+          <Link href={href({ supplier: NO_SUPPLIER })} className={chip(sp.supplier === NO_SUPPLIER)}>
+            {`No supplier · ${unlabelled}`}
+          </Link>
+        )}
+      </nav>
+
+      {canEdit ? (
+        <SupplierLabeler
+          items={rows.map((p) => ({ id: p.id, name: p.name, sku: p.sku, supplier: p.supplier }))}
+          suppliers={[...new Set([...supplierNames, ...origins.map((o) => o.name)])]}
+        >
+          {list}
+        </SupplierLabeler>
       ) : (
-        <>
-          <MobileList>
-            {rows.map((p) => (
-              <MobileCard
-                key={p.id}
-                href={`/products/${p.id}`}
-                title={p.name}
-                subtitle={
-                  <>
-                    <span className="font-mono">{p.sku}</span>
-                    {p.categoryId ? ` · ${catName.get(p.categoryId)}` : ""}
-                  </>
-                }
-                aside={formatMoney(p.sellPriceCents, s.currency)}
-                asideSub={showCosts ? `Cost ${formatMoney(p.costPriceCents, s.currency)}` : undefined}
-                facts={[
-                  { label: "On hand", value: p.onHand },
-                  { label: "Reserved", value: p.committed || "—" },
-                  { label: "Available", value: p.available, className: p.available <= 0 ? "text-bad" : "font-semibold" },
-                ]}
-                footer={p.active ? <StockBadge status={p.status} /> : <Badge>Deactivated</Badge>}
-              />
-            ))}
-          </MobileList>
-          <div className="hidden sm:block">
-          <TableWrap>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th className="hidden md:table-cell">Category</th>
-                <th className="num">Price</th>
-                {showCosts && <th className="num hidden sm:table-cell">Cost</th>}
-                <th className="num">On hand</th>
-                <th className="num hidden sm:table-cell">Reserved</th>
-                <th className="num">Available</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => (
-                <tr key={p.id} className="hover:bg-surface-2">
-                  <td>
-                    <Link href={`/products/${p.id}`} className="font-medium hover:underline">
-                      {p.name}
-                    </Link>
-                    <div className="font-mono text-xs text-ink-3">{p.sku}</div>
-                  </td>
-                  <td className="hidden text-ink-2 md:table-cell">{p.categoryId ? catName.get(p.categoryId) : "—"}</td>
-                  <td className="num">{formatMoney(p.sellPriceCents, s.currency)}</td>
-                  {showCosts && <td className="num hidden text-ink-2 sm:table-cell">{formatMoney(p.costPriceCents, s.currency)}</td>}
-                  <td className="num">{p.onHand}</td>
-                  <td className="num hidden text-ink-2 sm:table-cell">{p.committed || "—"}</td>
-                  <td className="num font-semibold">{p.available}</td>
-                  <td>{p.active ? <StockBadge status={p.status} /> : <Badge>Deactivated</Badge>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </TableWrap>
-          </div>
-        </>
+        list
       )}
     </>
   );

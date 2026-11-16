@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { toId } from "@/lib/ids";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -18,8 +19,8 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const db = await getDb();
   const s = await getSettings(db);
-  const page = Math.max(1, Number(sp.page) || 1);
-  const productId = Number(sp.product) || undefined;
+  const page = Math.min(10_000, Math.max(1, Number(sp.page) || 1));
+  const productId = toId(sp.product) ?? undefined;
   const type = movementType.enumValues.includes(sp.type as MovementType) ? (sp.type as MovementType) : undefined;
   const isDate = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const local = sql`(${stockMovements.createdAt} at time zone ${s.timezone})::date`;

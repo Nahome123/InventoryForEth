@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { toId } from "@/lib/ids";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
@@ -13,8 +14,8 @@ import { FulfillForm, StatusButton } from "./client";
 
 export default async function OrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> }) {
   await requireUser("manageOrders");
-  const id = Number((await params).id);
-  if (!Number.isInteger(id)) notFound();
+  const id = toId((await params).id);
+  if (!id) notFound();
   const { created } = await searchParams;
   const db = await getDb();
   const [row] = await db.select({ o: customerOrders, by: users.fullName }).from(customerOrders).leftJoin(users, eq(users.id, customerOrders.createdBy)).where(eq(customerOrders.id, id));

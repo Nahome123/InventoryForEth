@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { toId } from "@/lib/ids";
 import { notFound } from "next/navigation";
 import { asc, desc, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
@@ -15,8 +16,8 @@ import { AdjustStockForm } from "./adjust-form";
 
 export default async function ProductPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> }) {
   const user = await requireUser("viewInventory");
-  const id = Number((await params).id);
-  if (!Number.isInteger(id)) notFound();
+  const id = toId((await params).id);
+  if (!id) notFound();
   const { created } = await searchParams;
   const db = await getDb();
   const [p] = await db.select().from(products).where(eq(products.id, id));

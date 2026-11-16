@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { toId } from "@/lib/ids";
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -8,6 +9,7 @@ import { formatMoney } from "@/lib/money";
 import { formatPlainDate, orderNo, todayInZone } from "@/lib/format";
 import { Badge, Empty, MobileCard, MobileList, OrderStatusBadge, PageHeader, TableWrap } from "@/components/ui";
 import clsx from "clsx";
+import { SuggestInput } from "@/components/suggest-input";
 
 export const metadata = { title: "Customer orders" };
 
@@ -25,6 +27,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   const s = await getSettings(db);
   const today = todayInZone(s.timezone);
   const q = (sp.q ?? "").trim();
+  const customerNames = await db.selectDistinct({ name: customerOrders.customerName, phone: customerOrders.customerPhone }).from(customerOrders).limit(500);
   const rows = await db
     .select({
       o: customerOrders,
@@ -35,7 +38,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     .where(
       and(
         inArray(customerOrders.status, tab.statuses),
-        q ? or(ilike(customerOrders.customerName, `%${q}%`), ilike(customerOrders.customerPhone, `%${q}%`), /^\d+$/.test(q) ? eq(customerOrders.id, Number(q)) : undefined) : undefined,
+        q ? or(ilike(customerOrders.customerName, `%${q}%`), ilike(customerOrders.customerPhone, `%${q}%`), toId(q) ? eq(customerOrders.id, toId(q)!) : undefined) : undefined,
       ),
     )
     .orderBy(tab.key === "open" ? sql`${customerOrders.dueDate} asc nulls last` : desc(customerOrders.updatedAt), asc(customerOrders.id))
@@ -62,12 +65,12 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         </nav>
         <form className="flex w-full gap-2 sm:w-auto">
           <input type="hidden" name="tab" value={tab.key} />
-          <input className="input" type="search" name="q" defaultValue={sp.q} placeholder="Customer, phone or order #" aria-label="Search orders" />
+          <SuggestInput name="q" defaultValue={sp.q} placeholder="Customer, phone or order #" ariaLabel="Search orders" suggestions={customerNames.map((c) => ({ value: c.name, label: c.name, sub: c.phone ?? undefined }))} />
         </form>
       </div>
       {rows.length === 0 ? (
         <TableWrap>
-          <Empty>No {tab.label.toLowerCase()} orders.</Empty>
+          <Empty>{sp.q ? `Not found: no orders match “${sp.q}”.` : `No ${tab.label.toLowerCase()} orders.`}</Empty>
         </TableWrap>
       ) : (
         <>

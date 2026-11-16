@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { toId } from "@/lib/ids";
 import { notFound } from "next/navigation";
 import { alias } from "drizzle-orm/pg-core";
 import { eq } from "drizzle-orm";
@@ -14,8 +15,8 @@ import { PrintButton, VoidSaleForm } from "./client";
 
 export default async function SalePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser("recordSales");
-  const id = Number((await params).id);
-  if (!Number.isInteger(id)) notFound();
+  const id = toId((await params).id);
+  if (!id) notFound();
   const db = await getDb();
   const voider = alias(users, "voider");
   const [row] = await db
