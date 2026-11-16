@@ -7,7 +7,8 @@ import { getSettings } from "@/lib/analytics";
 import { getStockLevels } from "@/lib/inventory";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
-import { Badge, Empty, PageHeader, StockBadge, TableWrap } from "@/components/ui";
+import { Badge, Empty, MobileCard, MobileList, PageHeader, StockBadge, TableWrap } from "@/components/ui";
+import { Filters } from "@/components/filters";
 
 export const metadata = { title: "Products" };
 
@@ -48,9 +49,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           )
         }
       />
-      <form className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto_auto_auto]" role="search">
+      <Filters active={[sp.category, sp.stock, show !== "active" ? show : ""].filter(Boolean).length}>
+      <form className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto_auto]" role="search">
         <input className="input" name="q" defaultValue={sp.q} placeholder="Search name, SKU, barcode or supplier" aria-label="Search products" type="search" />
-        <select className="input" name="category" defaultValue={sp.category ?? ""} aria-label="Category">
+        <select className="input filter-extra" name="category" defaultValue={sp.category ?? ""} aria-label="Category">
           <option value="">All categories</option>
           {cats.map((c) => (
             <option key={c.id} value={c.id}>
@@ -58,26 +60,54 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             </option>
           ))}
         </select>
-        <select className="input" name="stock" defaultValue={sp.stock ?? ""} aria-label="Stock status">
+        <select className="input filter-extra" name="stock" defaultValue={sp.stock ?? ""} aria-label="Stock status">
           <option value="">Any stock</option>
           <option value="low">Low or out</option>
           <option value="out">Out of stock</option>
           <option value="ok">In stock</option>
         </select>
-        <select className="input" name="show" defaultValue={show} aria-label="Active status">
+        <select className="input filter-extra" name="show" defaultValue={show} aria-label="Active status">
           <option value="active">Active</option>
           <option value="inactive">Deactivated</option>
           <option value="all">All</option>
         </select>
-        <button className="btn-secondary" type="submit">
+        <button className="btn-secondary filter-extra" type="submit">
           Filter
         </button>
       </form>
+      </Filters>
 
-      <TableWrap>
-        {rows.length === 0 ? (
+      {rows.length === 0 ? (
+        <TableWrap>
           <Empty>{levels.length === 0 ? "No products yet. Add your first product or import a CSV." : "No products match these filters."}</Empty>
-        ) : (
+        </TableWrap>
+      ) : (
+        <>
+          <MobileList>
+            {rows.map((p) => (
+              <MobileCard
+                key={p.id}
+                href={`/products/${p.id}`}
+                title={p.name}
+                subtitle={
+                  <>
+                    <span className="font-mono">{p.sku}</span>
+                    {p.categoryId ? ` · ${catName.get(p.categoryId)}` : ""}
+                  </>
+                }
+                aside={formatMoney(p.sellPriceCents, s.currency)}
+                asideSub={showCosts ? `Cost ${formatMoney(p.costPriceCents, s.currency)}` : undefined}
+                facts={[
+                  { label: "On hand", value: p.onHand },
+                  { label: "Reserved", value: p.committed || "—" },
+                  { label: "Available", value: p.available, className: p.available <= 0 ? "text-bad" : "font-semibold" },
+                ]}
+                footer={p.active ? <StockBadge status={p.status} /> : <Badge>Deactivated</Badge>}
+              />
+            ))}
+          </MobileList>
+          <div className="hidden sm:block">
+          <TableWrap>
           <table className="data-table">
             <thead>
               <tr>
@@ -111,8 +141,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               ))}
             </tbody>
           </table>
-        )}
-      </TableWrap>
+          </TableWrap>
+          </div>
+        </>
+      )}
     </>
   );
 }

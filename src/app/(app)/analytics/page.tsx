@@ -63,7 +63,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           </a>
         }
       />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
         <StatTile label="Order now" value={restock.filter((r) => r.forecast.urgency === "order_now").length} hint="Out, or runs out before a delivery could arrive" href="/analytics?view=restock" />
         <StatTile label="Order soon" value={restock.filter((r) => r.forecast.urgency === "order_soon").length} hint="At or below reorder point" href="/analytics?view=restock" />
         <StatTile label="Suggested purchase" value={money(restockCost)} hint="At cost price" />

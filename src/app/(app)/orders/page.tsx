@@ -6,7 +6,7 @@ import { customerOrders, orderItems, type OrderStatus } from "@/lib/db/schema";
 import { addDays, getSettings } from "@/lib/analytics";
 import { formatMoney } from "@/lib/money";
 import { formatPlainDate, orderNo, todayInZone } from "@/lib/format";
-import { Badge, Empty, OrderStatusBadge, PageHeader, TableWrap } from "@/components/ui";
+import { Badge, Empty, MobileCard, MobileList, OrderStatusBadge, PageHeader, TableWrap } from "@/components/ui";
 import clsx from "clsx";
 
 export const metadata = { title: "Customer orders" };
@@ -53,22 +53,58 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         }
       />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <nav className="flex gap-1 rounded-lg bg-surface-2 p-1" aria-label="Order status">
+        <nav className="flex w-full gap-1 overflow-x-auto rounded-xl bg-surface-2 p-1 sm:w-auto" aria-label="Order status">
           {TABS.map((t) => (
-            <Link key={t.key} href={`/orders?tab=${t.key}`} aria-current={t === tab ? "page" : undefined} className={clsx("rounded-md px-3 py-1.5 text-sm font-medium", t === tab ? "bg-surface shadow-sm" : "text-ink-2")}>
+            <Link key={t.key} href={`/orders?tab=${t.key}`} aria-current={t === tab ? "page" : undefined} className={clsx("flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-sm font-medium sm:flex-none", t === tab ? "bg-surface shadow-sm" : "text-ink-2")}>
               {t.label}
             </Link>
           ))}
         </nav>
-        <form className="flex gap-2">
+        <form className="flex w-full gap-2 sm:w-auto">
           <input type="hidden" name="tab" value={tab.key} />
           <input className="input" type="search" name="q" defaultValue={sp.q} placeholder="Customer, phone or order #" aria-label="Search orders" />
         </form>
       </div>
-      <TableWrap>
-        {rows.length === 0 ? (
+      {rows.length === 0 ? (
+        <TableWrap>
           <Empty>No {tab.label.toLowerCase()} orders.</Empty>
-        ) : (
+        </TableWrap>
+      ) : (
+        <>
+          <MobileList>
+            {rows.map(({ o, total, units }) => {
+              const overdue = tab.key === "open" && o.dueDate && o.dueDate < today;
+              const soon = tab.key === "open" && o.dueDate && !overdue && o.dueDate <= addDays(today, 3);
+              return (
+                <MobileCard
+                  key={o.id}
+                  href={`/orders/${o.id}`}
+                  title={o.customerName}
+                  subtitle={
+                    <>
+                      <span className="font-mono">{orderNo(o.id)}</span>
+                      {o.customerPhone ? ` · ${o.customerPhone}` : ""}
+                    </>
+                  }
+                  aside={formatMoney(Number(total), s.currency)}
+                  asideSub={`${units} unit${Number(units) === 1 ? "" : "s"}`}
+                  facts={[
+                    { label: "Due", value: formatPlainDate(o.dueDate), className: overdue ? "text-bad" : soon ? "text-warn" : undefined },
+                    { label: "Deposit", value: o.depositCents ? formatMoney(o.depositCents, s.currency) : "—" },
+                  ]}
+                  footer={
+                    <>
+                      <OrderStatusBadge status={o.status} />
+                      {overdue && <Badge tone="bad">Overdue</Badge>}
+                      {soon && <Badge tone="warn">Due soon</Badge>}
+                    </>
+                  }
+                />
+              );
+            })}
+          </MobileList>
+          <div className="hidden sm:block">
+          <TableWrap>
           <table className="data-table">
             <thead>
               <tr>
@@ -118,8 +154,10 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
               })}
             </tbody>
           </table>
-        )}
-      </TableWrap>
+          </TableWrap>
+          </div>
+        </>
+      )}
     </>
   );
 }

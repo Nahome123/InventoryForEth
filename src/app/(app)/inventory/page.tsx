@@ -5,7 +5,7 @@ import { getSettings } from "@/lib/analytics";
 import { getStockLevels } from "@/lib/inventory";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
-import { Empty, PageHeader, StatTile, StockBadge, TableWrap } from "@/components/ui";
+import { Empty, MobileCard, MobileList, PageHeader, StatTile, StockBadge, TableWrap } from "@/components/ui";
 
 export const metadata = { title: "Inventory" };
 
@@ -45,16 +45,16 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
           </>
         }
       />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
         <StatTile label="Active products" value={levels.length} hint={`${reserved} units reserved for orders`} />
         <StatTile label="Out of stock" value={out.length} href="/inventory?status=out" />
         <StatTile label="Low stock" value={low.length} hint="At or below reorder level" href="/inventory?status=low" />
         {showCosts ? <StatTile label="Stock value (cost)" value={formatMoney(value, s.currency)} hint={`${formatMoney(retail, s.currency)} at selling price`} /> : <StatTile label="Needs attention" value={out.length + low.length} />}
       </div>
 
-      <form className="my-4 flex flex-wrap gap-2" role="search">
-        <input className="input max-w-xs" name="q" type="search" defaultValue={sp.q} placeholder="Search or scan" aria-label="Search" />
-        <select className="input w-auto" name="status" defaultValue={status} aria-label="Status">
+      <form className="my-5 grid grid-cols-[1fr_auto] gap-2 sm:flex sm:flex-wrap" role="search">
+        <input className="input col-span-2 sm:max-w-xs" name="q" type="search" defaultValue={sp.q} placeholder="Search or scan" aria-label="Search" />
+        <select className="input sm:w-auto" name="status" defaultValue={status} aria-label="Status">
           <option value="attention">Low or out of stock</option>
           <option value="out">Out of stock</option>
           <option value="low">Low stock</option>
@@ -64,10 +64,37 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
         <button className="btn-secondary">Filter</button>
       </form>
 
-      <TableWrap>
-        {rows.length === 0 ? (
+      {rows.length === 0 ? (
+        <TableWrap>
           <Empty>{status === "attention" ? "Every product is above its reorder level. 👍" : "No products match."}</Empty>
-        ) : (
+        </TableWrap>
+      ) : (
+        <>
+          <MobileList>
+            {rows.map((l) => (
+              <MobileCard
+                key={l.id}
+                href={`/products/${l.id}`}
+                title={l.name}
+                subtitle={
+                  <>
+                    <span className="font-mono">{l.sku}</span>
+                    {l.supplier ? ` · ${l.supplier}` : ""}
+                  </>
+                }
+                aside={<span className={l.available < 0 ? "text-bad" : ""}>{l.available}</span>}
+                asideSub="available"
+                facts={[
+                  { label: "On hand", value: l.onHand },
+                  { label: "Reserved", value: l.committed || "—" },
+                  { label: "Reorder at", value: l.reorderLevel },
+                ]}
+                footer={<StockBadge status={l.status} />}
+              />
+            ))}
+          </MobileList>
+          <div className="hidden sm:block">
+          <TableWrap>
           <table className="data-table">
             <thead>
               <tr>
@@ -101,8 +128,10 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
               ))}
             </tbody>
           </table>
-        )}
-      </TableWrap>
+          </TableWrap>
+          </div>
+        </>
+      )}
     </>
   );
 }

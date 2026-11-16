@@ -73,7 +73,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-4">
         <StatTile label="On hand" value={`${p.stockOnHand} ${p.unit}`} />
         <StatTile label="Reserved for orders" value={committed} />
         <StatTile label="Available to sell" value={available} hint={`Reorder level ${p.reorderLevel}`} />

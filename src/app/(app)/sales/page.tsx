@@ -8,7 +8,8 @@ import { listSales, type SalesFilter } from "@/lib/sales-query";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
 import { formatDateTime, PAYMENT_LABELS, saleNo } from "@/lib/format";
-import { Badge, Empty, PageHeader, Pagination, StatTile, TableWrap } from "@/components/ui";
+import { Badge, Empty, MobileCard, MobileList, PageHeader, Pagination, StatTile, TableWrap } from "@/components/ui";
+import { Filters } from "@/components/filters";
 
 export const metadata = { title: "Sales history" };
 const PAGE = 50;
@@ -45,13 +46,14 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
           </>
         }
       />
-      <form className="card mb-4 grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Filters active={Object.keys(filters).filter((k) => k !== "q").length}>
+      <form className="card grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
         <input className="input" type="search" name="q" defaultValue={sp.q} placeholder="Sale # or customer" aria-label="Sale number or customer" />
-        <div className="grid grid-cols-2 gap-2">
+        <div className="filter-extra grid grid-cols-2 gap-2">
           <input className="input" type="date" name="from" defaultValue={sp.from} aria-label="From date" />
           <input className="input" type="date" name="to" defaultValue={sp.to} aria-label="To date" />
         </div>
-        <select className="input" name="product" defaultValue={sp.product ?? ""} aria-label="Product">
+        <select className="input filter-extra" name="product" defaultValue={sp.product ?? ""} aria-label="Product">
           <option value="">Any product</option>
           {prods.map((p) => (
             <option key={p.id} value={p.id}>
@@ -59,7 +61,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
             </option>
           ))}
         </select>
-        <select className="input" name="method" defaultValue={sp.method ?? ""} aria-label="Payment method">
+        <select className="input filter-extra" name="method" defaultValue={sp.method ?? ""} aria-label="Payment method">
           <option value="">Any payment</option>
           {Object.entries(PAYMENT_LABELS).map(([v, l]) => (
             <option key={v} value={v}>
@@ -67,7 +69,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
             </option>
           ))}
         </select>
-        <select className="input" name="user" defaultValue={sp.user ?? ""} aria-label="Recorded by">
+        <select className="input filter-extra" name="user" defaultValue={sp.user ?? ""} aria-label="Recorded by">
           <option value="">Anyone</option>
           {staff.map((u) => (
             <option key={u.id} value={u.id}>
@@ -75,12 +77,12 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
             </option>
           ))}
         </select>
-        <select className="input" name="status" defaultValue={sp.status ?? ""} aria-label="Status">
+        <select className="input filter-extra" name="status" defaultValue={sp.status ?? ""} aria-label="Status">
           <option value="">Completed & voided</option>
           <option value="completed">Completed</option>
           <option value="voided">Voided</option>
         </select>
-        <select className="input" name="source" defaultValue={sp.source ?? ""} aria-label="Source">
+        <select className="input filter-extra" name="source" defaultValue={sp.source ?? ""} aria-label="Source">
           <option value="">All sources</option>
           <option value="pos">In-store sale</option>
           <option value="order">Customer order</option>
@@ -93,17 +95,49 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
           </Link>
         </div>
       </form>
+      </Filters>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid gap-2.5 sm:grid-cols-3 sm:gap-3">
         <StatTile label="Sales found" value={count} hint={count !== completed ? `${count - completed} voided` : undefined} />
         <StatTile label="Revenue (completed)" value={money(revenue)} />
         <StatTile label="Average sale" value={completed ? money(Math.round(revenue / completed)) : "—"} />
       </div>
 
-      <TableWrap>
-        {rows.length === 0 ? (
+      {rows.length === 0 ? (
+        <TableWrap>
           <Empty>No sales match these filters.</Empty>
-        ) : (
+        </TableWrap>
+      ) : (
+        <>
+          <MobileList>
+            {rows.map(({ sale, by, items }) => (
+              <MobileCard
+                key={sale.id}
+                href={`/sales/${sale.id}`}
+                muted={sale.status === "voided"}
+                title={<span className="font-mono">{saleNo(sale.id)}</span>}
+                subtitle={formatDateTime(sale.soldAt, s.timezone)}
+                aside={<span className={sale.status === "voided" ? "line-through" : ""}>{money(sale.totalCents)}</span>}
+                asideSub={`${items} item${items === 1 ? "" : "s"}`}
+                facts={[
+                  { label: "Customer", value: sale.customerName ?? "—" },
+                  { label: "Payment", value: PAYMENT_LABELS[sale.paymentMethod] },
+                  { label: "By", value: by ?? "—" },
+                ]}
+                footer={
+                  sale.status === "voided" || sale.source !== "pos" ? (
+                    <>
+                      {sale.status === "voided" && <Badge tone="bad">Voided</Badge>}
+                      {sale.source === "order" && <Badge tone="accent">Order</Badge>}
+                      {sale.source === "import" && <Badge>Imported</Badge>}
+                    </>
+                  ) : undefined
+                }
+              />
+            ))}
+          </MobileList>
+          <div className="hidden sm:block">
+          <TableWrap>
           <table className="data-table">
             <thead>
               <tr>
@@ -145,8 +179,10 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
               ))}
             </tbody>
           </table>
-        )}
-      </TableWrap>
+          </TableWrap>
+          </div>
+        </>
+      )}
       <Pagination page={page} hasMore={page * PAGE < count} makeHref={qs} />
     </>
   );

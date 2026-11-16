@@ -53,7 +53,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         <StatTile label="Today" value={money(d.today.revenue)} hint={`${d.today.count} sale${d.today.count === 1 ? "" : "s"}`} href="/sales" />
         <StatTile label="Last 7 days" value={money(d.last7.revenue)} hint={`${d.last7.count} sales`} />
         {showCosts ? (

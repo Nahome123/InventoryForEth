@@ -52,7 +52,7 @@ export function PointOfSale({ products, currency }: { products: PickProduct[]; c
   const units = cart.lines.reduce((s, l) => s + l.quantity, 0);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+    <div className={`grid gap-5 lg:grid-cols-[1fr_340px] ${cart.lines.length ? "pb-20 lg:pb-0" : ""}`}>
       <div className="min-w-0 space-y-3">
         {state?.saleId && (
           <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-good-soft px-4 py-3 text-good">
@@ -69,14 +69,14 @@ export function PointOfSale({ products, currency }: { products: PickProduct[]; c
         <CartLines lines={cart.lines} products={byId} cart={cart} currency={currency} mode="sale" />
       </div>
 
-      <form onSubmit={onSubmit} key={formKey} className="card h-fit space-y-4 p-5 sm:p-6 lg:sticky lg:top-24">
+      <form id="checkout" onSubmit={onSubmit} key={formKey} className="card h-fit scroll-mt-20 space-y-4 p-5 sm:p-6 lg:sticky lg:top-24">
         <FormMessage state={state?.error ? state : null} />
         <input type="hidden" name="lines" value={JSON.stringify(cart.lines)} />
         <fieldset>
           <legend className="label">Payment method</legend>
           <div className="grid grid-cols-2 gap-2">
             {METHODS.map(([v, l]) => (
-              <label key={v} className={`cursor-pointer rounded-lg border px-3 py-2 text-center text-sm font-medium ${method === v ? "border-accent bg-accent-soft text-accent" : "border-line"}`}>
+              <label key={v} className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-center text-sm font-medium transition ${method === v ? "border-accent bg-accent-soft text-accent" : "border-line-strong"}`}>
                 <input type="radio" name="paymentMethod" value={v} checked={method === v} onChange={() => setMethod(v)} className="sr-only" />
                 {l}
               </label>
@@ -134,6 +134,25 @@ export function PointOfSale({ products, currency }: { products: PickProduct[]; c
           </button>
         )}
       </form>
+
+      {cart.lines.length > 0 && (
+        // Phones: keep the running total in view while scrolling the cart.
+        <div className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 print:hidden lg:hidden">
+          <button
+            type="button"
+            onClick={() => document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-ink px-4 py-3 text-left text-bg shadow-xl active:scale-[0.99]"
+          >
+            <span className="min-w-0">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] opacity-70">
+                {units} item{units === 1 ? "" : "s"}
+              </span>
+              <span className="block truncate font-display text-lg font-semibold tabular-nums">{fmtMoney(Math.max(0, total), currency)}</span>
+            </span>
+            <span className="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">Checkout</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

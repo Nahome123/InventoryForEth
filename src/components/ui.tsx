@@ -36,10 +36,14 @@ export function StockBadge({ status }: { status: "out" | "low" | "ok" }) {
 
 export function StatTile({ label, value, hint, href }: { label: string; value: React.ReactNode; hint?: React.ReactNode; href?: string }) {
   const body = (
-    <div className="card h-full p-5">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">{label}</div>
-      <div className="mt-2 font-display text-[26px] font-semibold leading-tight tracking-tight tabular-nums sm:text-3xl">{value}</div>
-      {hint && <div className="mt-1.5 text-[13px] text-ink-2">{hint}</div>}
+    // Phones: a full-width row (label left, value right) so long amounts never get squeezed.
+    <div className="card flex h-full items-center justify-between gap-4 px-4 py-3.5 sm:block sm:p-5">
+      <div className="min-w-0">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">{label}</div>
+        {hint && <div className="mt-1 truncate text-[13px] text-ink-2 sm:hidden">{hint}</div>}
+      </div>
+      <div className="shrink-0 text-right font-display text-xl font-semibold leading-tight tracking-tight tabular-nums sm:mt-2 sm:text-left sm:text-3xl">{value}</div>
+      {hint && <div className="mt-1.5 hidden text-[13px] text-ink-2 sm:block">{hint}</div>}
     </div>
   );
   return href ? (
@@ -94,4 +98,61 @@ export function Pagination({ page, hasMore, makeHref }: { page: number; hasMore:
 export function OrderStatusBadge({ status }: { status: "pending" | "ready" | "fulfilled" | "cancelled" }) {
   const tone = status === "ready" ? "good" : status === "pending" ? "warn" : status === "cancelled" ? "neutral" : "accent";
   return <Badge tone={tone}>{ORDER_STATUS_LABELS[status]}</Badge>;
+}
+
+type Fact = { label: string; value: React.ReactNode; className?: string };
+
+/** Card list shown instead of a table on phones (pair with `<div className="hidden sm:block">` around the table). */
+export function MobileList({ children }: { children: React.ReactNode }) {
+  return <ul className="space-y-2.5 sm:hidden">{children}</ul>;
+}
+
+export function MobileCard({
+  href,
+  title,
+  subtitle,
+  aside,
+  asideSub,
+  facts,
+  footer,
+  muted,
+}: {
+  href?: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  aside?: React.ReactNode;
+  asideSub?: React.ReactNode;
+  facts?: Fact[];
+  footer?: React.ReactNode;
+  muted?: boolean;
+}) {
+  const inner = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold leading-snug">{title}</div>
+          {subtitle && <div className="mt-0.5 truncate text-xs text-ink-3">{subtitle}</div>}
+        </div>
+        {(aside || asideSub) && (
+          <div className="shrink-0 text-right">
+            {aside && <div className="font-display text-base font-semibold tabular-nums">{aside}</div>}
+            {asideSub && <div className="mt-0.5 text-xs text-ink-3">{asideSub}</div>}
+          </div>
+        )}
+      </div>
+      {facts && facts.length > 0 && (
+        <dl className={clsx("mt-3 grid gap-x-3 gap-y-2.5 border-t border-dashed border-line-strong pt-3", facts.length === 2 || facts.length === 4 ? "grid-cols-2" : "grid-cols-3")}>
+          {facts.map((f) => (
+            <div key={f.label} className="min-w-0">
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-3">{f.label}</dt>
+              <dd className={clsx("mt-0.5 truncate text-sm font-medium tabular-nums", f.className)}>{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {footer && <div className="mt-3 flex flex-wrap items-center gap-1.5">{footer}</div>}
+    </>
+  );
+  const cls = clsx("card block p-4", muted && "opacity-70", href && "transition active:scale-[0.99]");
+  return <li>{href ? <Link href={href} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>}</li>;
 }

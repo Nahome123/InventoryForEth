@@ -160,3 +160,9 @@ h3 {
     @apply border-b-0;
   }
 }
+
+@media (max-width: 639.98px) {
+  [data-filters]:not([data-open]) .filter-extra {
+    display: none;
+  }
+}

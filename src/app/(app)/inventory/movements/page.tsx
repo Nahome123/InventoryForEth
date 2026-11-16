@@ -5,7 +5,8 @@ import { getDb } from "@/lib/db";
 import { movementType, products, stockMovements, users, type MovementType } from "@/lib/db/schema";
 import { getSettings } from "@/lib/analytics";
 import { formatDateTime, MOVEMENT_LABELS, saleNo } from "@/lib/format";
-import { Empty, PageHeader, Pagination, TableWrap } from "@/components/ui";
+import { Empty, MobileCard, MobileList, PageHeader, Pagination, TableWrap } from "@/components/ui";
+import { Filters } from "@/components/filters";
 
 export const metadata = { title: "Stock history" };
 const PAGE = 50;
@@ -47,7 +48,8 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader title="Stock history" subtitle="Every change to stock levels, newest first. Entries can't be edited or deleted." />
-      <form className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto_auto_auto]">
+      <Filters active={[sp.type, sp.from, sp.to].filter(Boolean).length}>
+      <form className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto_auto]">
         <select className="input" name="product" defaultValue={sp.product ?? ""} aria-label="Product">
           <option value="">All products</option>
           {prods.map((p) => (
@@ -56,7 +58,7 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
             </option>
           ))}
         </select>
-        <select className="input" name="type" defaultValue={sp.type ?? ""} aria-label="Type">
+        <select className="input filter-extra" name="type" defaultValue={sp.type ?? ""} aria-label="Type">
           <option value="">All types</option>
           {movementType.enumValues.map((t) => (
             <option key={t} value={t}>
@@ -64,14 +66,45 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
             </option>
           ))}
         </select>
-        <input className="input" type="date" name="from" defaultValue={sp.from} aria-label="From date" />
-        <input className="input" type="date" name="to" defaultValue={sp.to} aria-label="To date" />
+        <input className="input filter-extra" type="date" name="from" defaultValue={sp.from} aria-label="From date" />
+        <input className="input filter-extra" type="date" name="to" defaultValue={sp.to} aria-label="To date" />
         <button className="btn-secondary">Filter</button>
       </form>
-      <TableWrap>
-        {rows.length === 0 ? (
+      </Filters>
+      {rows.length === 0 ? (
+        <TableWrap>
           <Empty>No stock movements match.</Empty>
-        ) : (
+        </TableWrap>
+      ) : (
+        <>
+          <MobileList>
+            {rows.slice(0, PAGE).map(({ m, name, sku, by }) => (
+              <MobileCard
+                key={m.id}
+                href={`/products/${m.productId}`}
+                title={name}
+                subtitle={formatDateTime(m.createdAt, s.timezone)}
+                aside={<span className={m.quantity > 0 ? "text-good" : "text-bad"}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</span>}
+                asideSub={`balance ${m.balanceAfter}`}
+                facts={[
+                  { label: "Type", value: MOVEMENT_LABELS[m.type] },
+                  { label: "SKU", value: <span className="font-mono">{sku}</span> },
+                  { label: "By", value: by ?? "—" },
+                ]}
+                footer={
+                  m.saleId || m.note ? (
+                    <span className="text-xs text-ink-2">
+                      {m.saleId ? saleNo(m.saleId) : ""}
+                      {m.saleId && m.note ? " · " : ""}
+                      {m.note}
+                    </span>
+                  ) : undefined
+                }
+              />
+            ))}
+          </MobileList>
+          <div className="hidden sm:block">
+          <TableWrap>
           <table className="data-table">
             <thead>
               <tr>
@@ -110,8 +143,10 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
               ))}
             </tbody>
           </table>
-        )}
-      </TableWrap>
+          </TableWrap>
+          </div>
+        </>
+      )}
       <Pagination page={page} hasMore={hasMore} makeHref={qs} />
     </>
   );

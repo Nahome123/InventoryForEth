@@ -23,13 +23,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect((await hasAnyUser()) ? "/login" : "/setup");
   const s = await getSettings(await getDb());
   const items = NAV.filter((n) => !n.perm || can(user.role, n.perm)).map(({ perm: _perm, ...n }) => n);
-  const nav = { items, storeName: s.storeName, userName: user.fullName, roleLabel: ROLE_LABELS[user.role], logout: logoutAction };
+  const nav = { items, storeName: s.storeName, userName: user.fullName, roleLabel: ROLE_LABELS[user.role], canSell: can(user.role, "recordSales"), logout: logoutAction };
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <TopNav {...nav} canSell={can(user.role, "recordSales")} />
+      <TopNav {...nav} />
       <MobileNav {...nav} />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-14 lg:pt-10">{children}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-32 pt-6 sm:px-6 lg:pb-14 lg:pt-10">{children}</main>
     </div>
   );
 }
