@@ -37,8 +37,8 @@ export function ProductForm({
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <FormMessage state={state} />
-      <section className="card space-y-4 p-4">
-        <h2 className="font-bold">Details</h2>
+      <section className="card space-y-4 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">Details</h2>
         <Field label="Product name *">
           <input className="input" name="name" required defaultValue={v.name} maxLength={200} />
         </Field>
@@ -66,8 +66,8 @@ export function ProductForm({
         </Field>
       </section>
 
-      <section className="card space-y-4 p-4">
-        <h2 className="font-bold">Pricing ({currency})</h2>
+      <section className="card space-y-4 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">Pricing ({currency})</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Selling price *">
             <input className="input" name="sellPrice" required inputMode="decimal" defaultValue={v.sellPrice} placeholder="0.00" pattern="\d+(\.\d{1,2})?" />
@@ -78,8 +78,8 @@ export function ProductForm({
         </div>
       </section>
 
-      <section className="card space-y-4 p-4">
-        <h2 className="font-bold">Stock & restocking</h2>
+      <section className="card space-y-4 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">Stock & restocking</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {isNew && (
             <Field label="Opening stock" hint="Units on the shelf right now.">

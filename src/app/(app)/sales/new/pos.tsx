@@ -69,7 +69,7 @@ export function PointOfSale({ products, currency }: { products: PickProduct[]; c
         <CartLines lines={cart.lines} products={byId} cart={cart} currency={currency} mode="sale" />
       </div>
 
-      <form onSubmit={onSubmit} key={formKey} className="card h-fit space-y-4 p-4 lg:sticky lg:top-6">
+      <form onSubmit={onSubmit} key={formKey} className="card h-fit space-y-4 p-5 sm:p-6 lg:sticky lg:top-24">
         <FormMessage state={state?.error ? state : null} />
         <input type="hidden" name="lines" value={JSON.stringify(cart.lines)} />
         <fieldset>

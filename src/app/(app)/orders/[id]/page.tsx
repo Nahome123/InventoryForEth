@@ -59,8 +59,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <section className="card p-4 text-sm">
-          <h2 className="mb-2 font-bold">Customer</h2>
+        <section className="card p-5 sm:p-6 text-sm">
+          <h2 className="mb-2 text-lg font-semibold">Customer</h2>
           <div className="text-base font-semibold">{o.customerName}</div>
           {o.customerPhone && (
             <a className="text-accent hover:underline" href={`tel:${o.customerPhone}`}>
@@ -69,8 +69,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           )}
           {o.note && <p className="mt-2 text-ink-2">{o.note}</p>}
         </section>
-        <section className="card p-4 text-sm">
-          <h2 className="mb-2 font-bold">Summary</h2>
+        <section className="card p-5 sm:p-6 text-sm">
+          <h2 className="mb-2 text-lg font-semibold">Summary</h2>
           <dl className="space-y-1">
             <div className="flex justify-between">
               <dt className="text-ink-2">Due</dt>
@@ -139,8 +139,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
       {open && (
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <section className="card p-4">
-            <h2 className="mb-1 font-bold">Customer is picking it up</h2>
+          <section className="card p-5 sm:p-6">
+            <h2 className="mb-1 text-lg font-semibold">Customer is picking it up</h2>
             <p className="mb-3 text-sm text-ink-2">Records the sale at the prices agreed on the order and takes the items out of stock.</p>
             {missing.length > 0 ? (
               <Alert tone="warn">
@@ -154,8 +154,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               <FulfillForm orderId={o.id} balance={money(total - o.depositCents)} />
             )}
           </section>
-          <section className="card space-y-2 p-4">
-            <h2 className="mb-1 font-bold">Status</h2>
+          <section className="card space-y-2 p-5 sm:p-6">
+            <h2 className="mb-1 text-lg font-semibold">Status</h2>
             {o.status === "pending" && <StatusButton orderId={o.id} status="ready" label="Mark ready for pickup" />}
             {o.status === "ready" && <StatusButton orderId={o.id} status="pending" label="Move back to pending" />}
             <StatusButton orderId={o.id} status="cancelled" label="Cancel order" danger confirmText="Cancel this order? Reserved stock will be released." />

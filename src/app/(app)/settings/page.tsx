@@ -17,13 +17,13 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-4xl space-y-6">
       <PageHeader title="Settings" />
-      <section className="card p-4">
-        <h2 className="mb-3 font-bold">Store</h2>
+      <section className="card p-5 sm:p-6">
+        <h2 className="mb-3 text-lg font-semibold">Store</h2>
         <StoreSettingsForm initial={s} currencies={COMMON_CURRENCIES} timeZones={allTimeZones()} />
       </section>
 
-      <section className="card p-4">
-        <h2 className="font-bold">People</h2>
+      <section className="card p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">People</h2>
         <ul className="mb-4 mt-1 space-y-0.5 text-xs text-ink-3">
           {(["owner", "manager", "cashier"] as const).map((r) => (
             <li key={r}>
@@ -45,8 +45,8 @@ export default async function SettingsPage() {
         </ul>
       </section>
 
-      <section className="card p-4">
-        <h2 className="mb-3 font-bold">Add a family member or employee</h2>
+      <section className="card p-5 sm:p-6">
+        <h2 className="mb-3 text-lg font-semibold">Add a family member or employee</h2>
         <AddUserForm />
       </section>
     </div>

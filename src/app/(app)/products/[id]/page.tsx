@@ -117,7 +117,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
               }}
             />
           ) : (
-            <section className="card p-4">
+            <section className="card p-5 sm:p-6">
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <dt className="text-ink-3">Price</dt>
                 <dd>{money(p.sellPriceCents)}</dd>
@@ -135,15 +135,15 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
         <aside className="space-y-5">
           {can(user.role, "adjustStock") && p.active && (
-            <section className="card p-4">
-              <h2 className="mb-3 font-bold">Change stock</h2>
+            <section className="card p-5 sm:p-6">
+              <h2 className="mb-3 text-lg font-semibold">Change stock</h2>
               <AdjustStockForm productId={id} onHand={p.stockOnHand} unit={p.unit} />
             </section>
           )}
         </aside>
       </div>
 
-      <h2 className="mb-2 mt-6 font-bold">Stock history</h2>
+      <h2 className="mb-2 mt-6 text-lg font-semibold">Stock history</h2>
       <TableWrap>
         {moves.length === 0 ? (
           <Empty>No stock movements yet.</Empty>

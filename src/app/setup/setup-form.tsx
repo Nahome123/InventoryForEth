@@ -13,10 +13,11 @@ export function SetupForm({ currencies, timeZones }: { currencies: string[]; tim
   }, []);
 
   return (
-    <form onSubmit={onSubmit} className="card space-y-4 p-5">
+    <form onSubmit={onSubmit} className="space-y-6">
       <FormMessage state={state} />
       <fieldset className="space-y-4">
-        <legend className="text-sm font-bold">Store</legend>
+        <legend className="sr-only">Store</legend>
+        <div className="eyebrow" aria-hidden>Store</div>
         <Field label="Store name">
           <input className="input" name="storeName" required placeholder="e.g. Family General Store" />
         </Field>
@@ -38,8 +39,9 @@ export function SetupForm({ currencies, timeZones }: { currencies: string[]; tim
           </Field>
         </div>
       </fieldset>
-      <fieldset className="space-y-4 border-t border-line pt-4">
-        <legend className="pt-4 text-sm font-bold">Owner account</legend>
+      <fieldset className="space-y-4 border-t border-dashed border-line-strong pt-6">
+        <legend className="sr-only">Owner account</legend>
+        <div className="eyebrow" aria-hidden>Owner account</div>
         <Field label="Your full name">
           <input className="input" name="fullName" required autoComplete="name" />
         </Field>
@@ -55,7 +57,7 @@ export function SetupForm({ currencies, timeZones }: { currencies: string[]; tim
           </Field>
         </div>
       </fieldset>
-      <SubmitButton pending={pending} className="btn-primary w-full" pendingText="Creating…">
+      <SubmitButton pending={pending} className="btn-primary min-h-12 w-full text-[15px]" pendingText="Creating…">
         Create store
       </SubmitButton>
     </form>

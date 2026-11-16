@@ -18,7 +18,7 @@ export function OrderForm({ products, currency, today }: { products: PickProduct
         <CartLines lines={cart.lines} products={byId} cart={cart} currency={currency} mode="order" />
         <input type="hidden" name="lines" value={JSON.stringify(cart.lines)} />
       </div>
-      <div className="card h-fit space-y-4 p-4">
+      <div className="card h-fit space-y-4 p-5 sm:p-6">
         <FormMessage state={state} />
         <Field label="Customer name *">
           <input className="input" name="customerName" required autoComplete="off" />

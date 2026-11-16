@@ -248,7 +248,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         </>
       )}
 
-      <details className="card mt-6 p-4 text-sm text-ink-2">
+      <details className="card mt-6 p-5 sm:p-6 text-sm text-ink-2">
         <summary className="cursor-pointer font-semibold text-ink">How the forecast works</summary>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
           <li>We add up each product&apos;s completed sales for each of the last {WINDOW_DAYS / 7} weeks (voided sales are ignored).</li>

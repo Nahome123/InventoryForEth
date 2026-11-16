@@ -36,7 +36,7 @@ export function FormMessage({ state }: { state: ActionState }) {
   if (!state) return null;
   if (state.error || state.errors?.length)
     return (
-      <div role="alert" className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">
+      <div role="alert" className="rounded-xl bg-bad-soft px-4 py-3 text-sm text-bad">
         {state.error}
         {state.errors?.length ? (
           <ul className="mt-1 list-disc space-y-0.5 pl-5">
@@ -49,7 +49,7 @@ export function FormMessage({ state }: { state: ActionState }) {
     );
   if (state.ok)
     return (
-      <div role="status" className="rounded-lg bg-good-soft px-3 py-2 text-sm text-good">
+      <div role="status" className="rounded-xl bg-good-soft px-4 py-3 text-sm text-good">
         {state.ok}
       </div>
     );
@@ -61,7 +61,7 @@ export function Field({ label, hint, children, className }: { label: string; hin
     <label className={clsx("block", className)}>
       <span className="label">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-ink-3">{hint}</span>}
+      {hint && <span className="mt-1.5 block text-xs text-ink-3">{hint}</span>}
     </label>
   );
 }

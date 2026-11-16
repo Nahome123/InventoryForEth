@@ -141,8 +141,8 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
           </p>
         )}
         {can(user.role, "voidSales") && sale.status === "completed" && (
-          <section className="card p-4">
-            <h2 className="mb-1 font-bold">Void this sale</h2>
+          <section className="card p-5 sm:p-6">
+            <h2 className="mb-1 text-lg font-semibold">Void this sale</h2>
             <p className="mb-3 text-sm text-ink-2">
               Use this if the sale was entered by mistake or fully refunded. {sale.source === "import" ? "Imported sales didn't change stock, so no stock is returned." : "All items go back into stock."}
               {sale.orderId ? " The customer order goes back to “Ready”." : ""}

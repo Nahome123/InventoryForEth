@@ -41,18 +41,19 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
       )}
       <PageHeader
-        title={`Hello, ${user.fullName.split(" ")[0]}`}
-        subtitle={new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeZone: d.settings.timezone }).format(new Date())}
+        eyebrow={new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeZone: d.settings.timezone }).format(new Date())}
+        title={`Hello, ${user.fullName.split(" ")[0]}.`}
+        subtitle="Here's how the shop is doing today."
         actions={
           can(user.role, "recordSales") && (
-            <Link href="/sales/new" className="btn-primary">
+            <Link href="/sales/new" className="btn-primary lg:hidden">
               + New sale
             </Link>
           )
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatTile label="Today" value={money(d.today.revenue)} hint={`${d.today.count} sale${d.today.count === 1 ? "" : "s"}`} href="/sales" />
         <StatTile label="Last 7 days" value={money(d.last7.revenue)} hint={`${d.last7.count} sales`} />
         {showCosts ? (
@@ -63,9 +64,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <StatTile label="Open customer orders" value={d.openOrders} hint={d.ordersDueSoon ? `${d.ordersDueSoon} due within 3 days` : "None due soon"} href="/orders" />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <section className="card p-4 lg:col-span-2">
-          <h2 className="font-bold">Daily sales · last 30 days</h2>
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <section className="card p-5 sm:p-6 lg:col-span-2">
+          <h2 className="text-lg font-semibold">Daily sales · last 30 days</h2>
           <p className="mb-2 text-xs text-ink-3">Completed sales, in {cur}</p>
           <BarChart
             ariaLabel="Daily sales revenue for the last 30 days"
@@ -74,9 +75,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           />
         </section>
 
-        <section className="card p-4">
+        <section className="card p-5 sm:p-6">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-bold">Top sellers · 30 days</h2>
+            <h2 className="text-lg font-semibold">Top sellers · 30 days</h2>
           </div>
           {top.length === 0 ? (
             <Empty>No sales recorded yet.</Empty>
@@ -98,11 +99,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </section>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section className="card p-4">
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <section className="card p-5 sm:p-6">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-bold">Needs restocking</h2>
-            <Link href={can(user.role, "viewAnalytics") ? "/analytics" : "/inventory?status=low"} className="text-sm text-accent hover:underline">
+            <h2 className="text-lg font-semibold">Needs restocking</h2>
+            <Link href={can(user.role, "viewAnalytics") ? "/analytics" : "/inventory?status=low"} className="text-sm font-semibold text-accent hover:underline">
               View all
             </Link>
           </div>
@@ -127,10 +128,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )}
         </section>
 
-        <section className="card p-4">
+        <section className="card p-5 sm:p-6">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-bold">Upcoming customer orders</h2>
-            <Link href="/orders" className="text-sm text-accent hover:underline">
+            <h2 className="text-lg font-semibold">Upcoming customer orders</h2>
+            <Link href="/orders" className="text-sm font-semibold text-accent hover:underline">
               View all
             </Link>
           </div>
