@@ -120,7 +120,8 @@ export const sales = pgTable(
   "sales",
   {
     id: serial("id").primaryKey(),
-    soldAt: timestamp("sold_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Null when the sale date isn't known (e.g. imported from records that had no dates). */
+    soldAt: timestamp("sold_at", { withTimezone: true }).defaultNow(),
     customerName: text("customer_name"),
     paymentMethod: paymentMethod("payment_method").notNull().default("cash"),
     subtotalCents: integer("subtotal_cents").notNull(),

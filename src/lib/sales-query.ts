@@ -2,7 +2,9 @@ import { and, desc, eq, exists, ilike, or, sql, type SQL } from "drizzle-orm";
 import type { Executor } from "./db/client";
 import { paymentMethod, products, saleItems, sales, users, type PaymentMethod } from "./db/schema";
 
-export type SalesFilter = { from?: string; to?: string; method?: string; status?: string; product?: string; user?: string; q?: string; source?: string };
+export type SaleLineSummary = { name: string; qty: number; soldCents: number; originalCents: number };
+
+export type SalesFilter ={ from?: string; to?: string; method?: string; status?: string; product?: string; user?: string; q?: string; source?: string };
 
 const isDate = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
 
@@ -45,13 +47,13 @@ export async function listSales(db: Executor, f: SalesFilter, tz: string, limit:
         sale: sales,
         by: users.fullName,
         items: sql<number>`(select coalesce(sum(${saleItems.quantity}),0)::int from ${saleItems} where ${saleItems.saleId} = ${sales.id})`,
-        /** e.g. "Oil filter ×24, Relay" */
-        productNames: sql<string | null>`(select string_agg(${products.name} || case when ${saleItems.quantity} > 1 then ' ×' || ${saleItems.quantity} else '' end, ', ' order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} where ${saleItems.saleId} = ${sales.id})`,
+        /** One entry per product line: sold unit price vs the product's own (original) price. */
+        lines: sql<SaleLineSummary[] | null>`(select json_agg(json_build_object('name', ${products.name}, 'qty', ${saleItems.quantity}, 'soldCents', ${saleItems.unitPriceCents}, 'originalCents', ${products.sellPriceCents}) order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} where ${saleItems.saleId} = ${sales.id})`,
       })
       .from(sales)
       .leftJoin(users, eq(users.id, sales.userId))
       .where(where)
-      .orderBy(desc(sales.soldAt), desc(sales.id))
+      .orderBy(sql`${sales.soldAt} desc nulls last`, desc(sales.id))
       .limit(limit)
       .offset(offset),
     db

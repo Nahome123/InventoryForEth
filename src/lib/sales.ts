@@ -15,7 +15,8 @@ export type CreateSaleInput = {
   userId: number | null;
   source?: "pos" | "order" | "import";
   orderId?: number | null;
-  soldAt?: Date;
+  /** Omit for "now"; null records a sale whose date isn't known. */
+  soldAt?: Date | null;
   /** Imported historical sales already happened before the current stock count, so they don't move stock. */
   affectStock?: boolean;
   /** Allow sale of inactive products (imports of historical data). */
@@ -59,7 +60,7 @@ export async function createSaleTx(tx: Tx, input: CreateSaleInput) {
   const [sale] = await tx
     .insert(sales)
     .values({
-      soldAt: input.soldAt ?? new Date(),
+      soldAt: input.soldAt === undefined ? new Date() : input.soldAt,
       customerName: input.customerName?.trim() || null,
       paymentMethod: method,
       subtotalCents: subtotal,

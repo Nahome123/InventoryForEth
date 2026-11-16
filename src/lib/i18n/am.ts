@@ -287,6 +287,8 @@ export const AM: Record<string, string> = {
   // Sales history
   "Sale # or customer": "የሽያጭ ቁጥር ወይም ደንበኛ",
   "Search & filters": "ፍለጋና ማጣሪያዎች",
+  "Original price": "የመጀመሪያ ዋጋ",
+  "Sold unit price": "የተሸጠበት የአንዱ ዋጋ",
   "Product, customer or sale #": "ምርት፣ ደንበኛ ወይም የሽያጭ ቁጥር",
   "Product, customer or sale number": "ምርት፣ ደንበኛ ወይም የሽያጭ ቁጥር",
   "Sale number or customer": "የሽያጭ ቁጥር ወይም ደንበኛ",

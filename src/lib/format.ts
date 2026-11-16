@@ -1,11 +1,13 @@
 export const saleNo = (id: number) => `S-${String(id).padStart(6, "0")}`;
 export const orderNo = (id: number) => `O-${String(id).padStart(5, "0")}`;
 
-export function formatDateTime(d: Date | string, timeZone?: string) {
+export function formatDateTime(d: Date | string | null, timeZone?: string) {
+  if (d === null) return "—";
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(d));
 }
 
-export function formatDate(d: Date | string, timeZone?: string) {
+export function formatDate(d: Date | string | null, timeZone?: string) {
+  if (d === null) return "—";
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone }).format(new Date(d));
 }
 

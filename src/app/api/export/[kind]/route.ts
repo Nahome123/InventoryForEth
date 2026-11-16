@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { categories, products, saleItems, sales, stockMovements, users } from "@/lib/db/schema";
@@ -12,7 +12,8 @@ import { saleNo } from "@/lib/format";
 
 const money = (c: number) => (c / 100).toFixed(2);
 
-function localStamp(d: Date, tz: string) {
+function localStamp(d: Date | null, tz: string) {
+  if (!d) return "";
   // "YYYY-MM-DD HH:mm" in the store's time zone, which re-imports cleanly.
   const p = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d);
   const g = (t: string) => p.find((x) => x.type === t)?.value;
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ kind
         .from(sales)
         .leftJoin(users, eq(users.id, sales.userId))
         .where(salesWhere(f, s.timezone))
-        .orderBy(desc(sales.soldAt));
+        .orderBy(sql`${sales.soldAt} desc nulls last`, desc(sales.id));
       return csv(
         `sales-${date}.csv`,
         toCsv(
@@ -102,7 +103,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ kind
         .innerJoin(sales, eq(sales.id, saleItems.saleId))
         .innerJoin(products, eq(products.id, saleItems.productId))
         .where(and(eq(sales.status, "completed")))
-        .orderBy(asc(sales.soldAt), asc(saleItems.id));
+        .orderBy(sql`${sales.soldAt} asc nulls first`, asc(saleItems.id));
       // Same columns as the sales import template, so it can be re-imported elsewhere.
       return csv(
         `sale-items-${date}.csv`,

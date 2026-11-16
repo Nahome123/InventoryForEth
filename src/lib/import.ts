@@ -165,7 +165,7 @@ export async function importSales(db: Executor, csv: string, opts: { userId: num
   const bySku = new Map(prods.map((p) => [p.sku.toLowerCase(), p]));
   const now = Date.now();
 
-  type Group = { soldAt: Date; method: PaymentMethod; customer: string; items: { productId: number; quantity: number; unitPriceCents: number }[] };
+  type Group = { soldAt: Date | null; method: PaymentMethod; customer: string; items: { productId: number; quantity: number; unitPriceCents: number }[] };
   const groups = new Map<string, Group>();
   rows.forEach((r, i) => {
     const rowNo = i + 2;
@@ -174,11 +174,11 @@ export async function importSales(db: Executor, csv: string, opts: { userId: num
     const qty = Number(pick(r, "quantity", "qty"));
     const priceStr = pick(r, "unit_price", "price");
     const method = (pick(r, "payment_method", "payment") || "cash").toLowerCase().replace(/\s+/g, "_") as PaymentMethod;
-    const soldAt = parseLocalDateTime(dateStr, opts.timeZone);
+    const soldAt = dateStr ? parseLocalDateTime(dateStr, opts.timeZone) : null;
     const p = bySku.get(sku.toLowerCase());
     const problems: string[] = [];
-    if (!soldAt) problems.push(`date "${dateStr}" must look like 2026-09-01 or 2026-09-01 14:30`);
-    else if (soldAt.getTime() > now + 60_000) problems.push("date is in the future");
+    if (dateStr && !soldAt) problems.push(`date "${dateStr}" must look like 2026-09-01 or 2026-09-01 14:30 (or leave it blank if unknown)`);
+    else if (soldAt && soldAt.getTime() > now + 60_000) problems.push("date is in the future");
     if (!sku) problems.push("SKU is missing");
     else if (!p) problems.push(`no product with SKU "${sku}" (import products first)`);
     if (!Number.isInteger(qty) || qty <= 0) problems.push("quantity must be a whole number of at least 1");
@@ -191,7 +191,7 @@ export async function importSales(db: Executor, csv: string, opts: { userId: num
     }
     const receipt = pick(r, "receipt", "receipt_no", "invoice");
     const key = receipt ? `${receipt}|${dateStr.slice(0, 10)}` : `row-${rowNo}`;
-    const g = groups.get(key) ?? { soldAt: soldAt!, method, customer: pick(r, "customer", "customer_name"), items: [] };
+    const g = groups.get(key) ?? { soldAt, method, customer: pick(r, "customer", "customer_name"), items: [] };
     g.items.push({ productId: p!.id, quantity: qty, unitPriceCents: price! });
     groups.set(key, g);
   });

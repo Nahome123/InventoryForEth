@@ -73,7 +73,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
         <header className="mb-4 text-center">
           <div className="text-lg font-bold">{s.storeName}</div>
           <div className="text-sm text-ink-2">
-            Receipt {saleNo(sale.id)} · {formatDateTime(sale.soldAt, s.timezone)}
+            Receipt {saleNo(sale.id)}{sale.soldAt ? ` · ${formatDateTime(sale.soldAt, s.timezone)}` : ""}
           </div>
           {sale.customerName && <div className="text-sm">Customer: {sale.customerName}</div>}
         </header>
