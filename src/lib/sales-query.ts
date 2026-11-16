@@ -1,6 +1,7 @@
 import { and, desc, eq, exists, ilike, or, sql, type SQL } from "drizzle-orm";
 import type { Executor } from "./db/client";
 import { toId } from "./ids";
+import { SALES_ID } from "./db/outer";
 import { paymentMethod, products, saleItems, saleOrigins, sales, users, type PaymentMethod } from "./db/schema";
 
 /** origin: supplier name, or null for store stock. */
@@ -27,19 +28,19 @@ export function salesWhere(f: SalesFilter, tz: string): SQL | undefined {
     userId ? eq(sales.userId, userId) : undefined,
     productId
       ? exists(
-          sql`select 1 from ${saleItems} where ${saleItems.saleId} = ${sales.id} and ${saleItems.productId} = ${productId}`,
+          sql`select 1 from ${saleItems} where ${saleItems.saleId} = ${SALES_ID} and ${saleItems.productId} = ${productId}`,
         )
       : undefined,
     f.origin === "store"
-      ? exists(sql`select 1 from ${saleItems} where ${saleItems.saleId} = ${sales.id} and ${saleItems.originId} is null`)
+      ? exists(sql`select 1 from ${saleItems} where ${saleItems.saleId} = ${SALES_ID} and ${saleItems.originId} is null`)
       : originId
-        ? exists(sql`select 1 from ${saleItems} where ${saleItems.saleId} = ${sales.id} and ${saleItems.originId} = ${originId}`)
+        ? exists(sql`select 1 from ${saleItems} where ${saleItems.saleId} = ${SALES_ID} and ${saleItems.originId} = ${originId}`)
         : undefined,
     q
       ? or(
           ilike(sales.customerName, like),
           exists(
-            sql`select 1 from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} where ${saleItems.saleId} = ${sales.id} and (${products.name} ilike ${like} or ${products.sku} ilike ${like})`,
+            sql`select 1 from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} where ${saleItems.saleId} = ${SALES_ID} and (${products.name} ilike ${like} or ${products.sku} ilike ${like})`,
           ),
           idFromQ ? eq(sales.id, idFromQ) : undefined,
         )
@@ -54,9 +55,9 @@ export async function listSales(db: Executor, f: SalesFilter, tz: string, limit:
       .select({
         sale: sales,
         by: users.fullName,
-        items: sql<number>`(select coalesce(sum(${saleItems.quantity}),0)::int from ${saleItems} where ${saleItems.saleId} = ${sales.id})`,
+        items: sql<number>`(select coalesce(sum(${saleItems.quantity}),0)::int from ${saleItems} where ${saleItems.saleId} = ${SALES_ID})`,
         /** One entry per product line: sold unit price vs the product's own (original) price. */
-        lines: sql<SaleLineSummary[] | null>`(select json_agg(json_build_object('name', ${products.name}, 'sku', ${products.sku}, 'qty', ${saleItems.quantity}, 'soldCents', ${saleItems.unitPriceCents}, 'costCents', ${saleItems.unitCostCents}, 'origin', ${saleOrigins.name}) order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} left join ${saleOrigins} on ${saleOrigins.id} = ${saleItems.originId} where ${saleItems.saleId} = ${sales.id})`,
+        lines: sql<SaleLineSummary[] | null>`(select json_agg(json_build_object('name', ${products.name}, 'sku', ${products.sku}, 'qty', ${saleItems.quantity}, 'soldCents', ${saleItems.unitPriceCents}, 'costCents', ${saleItems.unitCostCents}, 'origin', ${saleOrigins.name}) order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} left join ${saleOrigins} on ${saleOrigins.id} = ${saleItems.originId} where ${saleItems.saleId} = ${SALES_ID})`,
       })
       .from(sales)
       .leftJoin(users, eq(users.id, sales.userId))
@@ -69,7 +70,7 @@ export async function listSales(db: Executor, f: SalesFilter, tz: string, limit:
         count: sql<number>`count(*)::int`,
         revenue: sql<number>`coalesce(sum(case when ${sales.status} = 'completed' then ${sales.totalCents} else 0 end),0)::bigint`,
         completed: sql<number>`count(*) filter (where ${sales.status} = 'completed')::int`,
-        units: sql<number>`coalesce(sum(case when ${sales.status} = 'completed' then (select sum(${saleItems.quantity}) from ${saleItems} where ${saleItems.saleId} = ${sales.id}) else 0 end),0)::int`,
+        units: sql<number>`coalesce(sum(case when ${sales.status} = 'completed' then (select sum(${saleItems.quantity}) from ${saleItems} where ${saleItems.saleId} = ${SALES_ID}) else 0 end),0)::int`,
       })
       .from(sales)
       .where(where),

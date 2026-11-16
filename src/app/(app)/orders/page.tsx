@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { toId } from "@/lib/ids";
+import { ORDERS_ID } from "@/lib/db/outer";
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -31,8 +32,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   const rows = await db
     .select({
       o: customerOrders,
-      total: sql<number>`(select coalesce(sum(${orderItems.quantity} * ${orderItems.unitPriceCents}),0)::bigint from ${orderItems} where ${orderItems.orderId} = ${customerOrders.id})`,
-      units: sql<number>`(select coalesce(sum(${orderItems.quantity}),0)::int from ${orderItems} where ${orderItems.orderId} = ${customerOrders.id})`,
+      total: sql<number>`(select coalesce(sum(${orderItems.quantity} * ${orderItems.unitPriceCents}),0)::bigint from ${orderItems} where ${orderItems.orderId} = ${ORDERS_ID})`,
+      units: sql<number>`(select coalesce(sum(${orderItems.quantity}),0)::int from ${orderItems} where ${orderItems.orderId} = ${ORDERS_ID})`,
     })
     .from(customerOrders)
     .where(
