@@ -448,6 +448,10 @@ export const AM: Record<string, string> = {
   "Quantity must be at least 1.": "ብዛት ቢያንስ 1 መሆን አለበት።",
   "There must always be at least one active owner.": "ሁልጊዜ ቢያንስ አንድ ንቁ ባለቤት መኖር አለበት።",
   "You can't deactivate your own account.": "የራስዎን መለያ ማሰናከል አይችሉም።",
+  "Quantity sold": "የተሸጠ ብዛት",
+  "Units in the completed sales found": "በተገኙት የተጠናቀቁ ሽያጮች ውስጥ ያለው ብዛት",
+  "Below cost": "ከግዢ ዋጋ በታች",
+  "Enter the agreed selling price for every item.": "ለእያንዳንዱ ዕቃ የተስማማችሁበትን የመሸጫ ዋጋ ያስገቡ።",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
@@ -502,6 +506,10 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^of (\d+) sales in total$/, (m) => `ከጠቅላላ ${m[1]} ሽያጮች`],
+  [/^\/ (\d+)$/, (m) => `/ ${m[1]}`],
+  [/^\(?cost (.+?)\)?$/, (m) => `(የግዢ ዋጋ ${m[1]})`],
+  [/^Selling price of (.+)$/, (m) => `የ${m[1]} መሸጫ ዋጋ`],
   [/^Profit & loss · (.+)$/, (m) => `ትርፍ እና ኪሳራ · ${AM[m[1]] ?? m[1]}`],
   [/^Expenses · (.+)$/, (m) => `ወጪዎች · ${AM[m[1]] ?? m[1]}`],
   [/^(-?[\d.]+)% margin$/, (m) => `${m[1]}% ትርፍ`],

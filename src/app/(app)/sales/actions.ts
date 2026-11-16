@@ -16,6 +16,7 @@ export async function createSaleAction(_: SaleState, fd: FormData): Promise<Sale
   try {
     const user = await requireActionUser("recordSales");
     const items = parseLines(fd.get("lines"));
+    if (items.some((i) => i.unitPriceCents === undefined)) throw new UserError("Enter the agreed selling price for every item.");
     const method = String(fd.get("paymentMethod") ?? "cash") as PaymentMethod;
     if (!paymentMethod.enumValues.includes(method)) throw new UserError("Choose a payment method.");
     const discountRaw = String(fd.get("discount") ?? "").trim();

@@ -21,7 +21,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   const db = await getDb();
   const s = await getSettings(db);
   const page = Math.max(1, Number(sp.page) || 1);
-  const [{ rows, count, revenue, completed }, prods, staff, origins] = await Promise.all([
+  const [{ rows, count, revenue, completed, units, totalSales }, prods, staff, origins] = await Promise.all([
     listSales(db, sp, s.timezone, PAGE, (page - 1) * PAGE),
     db.select({ id: products.id, name: products.name }).from(products).orderBy(asc(products.name)),
     db.select({ id: users.id, name: users.fullName }).from(users).orderBy(asc(users.fullName)),
@@ -109,9 +109,18 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
       </FilterPanel>
 
       <div className="mb-4 grid gap-2.5 sm:grid-cols-3 sm:gap-3">
-        <StatTile label="Sales found" value={count} hint={count !== completed ? `${count - completed} voided` : undefined} />
+        <StatTile
+          label="Sales found"
+          value={
+            <>
+              {count}
+              <span className="text-ink-3">{` / ${totalSales}`}</span>
+            </>
+          }
+          hint={count !== completed ? `${count - completed} voided` : `of ${totalSales} sales in total`}
+        />
+        <StatTile label="Quantity sold" value={units} hint="Units in the completed sales found" />
         <StatTile label="Revenue (completed)" value={money(revenue)} />
-        <StatTile label="Average sale" value={completed ? money(Math.round(revenue / completed)) : "—"} />
       </div>
 
       {rows.length === 0 ? (
@@ -142,10 +151,10 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                   facts={
                     one
                       ? [
-                          { label: "Original price", value: money(one.originalCents) },
                           { label: "Sold unit price", value: money(one.soldCents), className: "font-semibold" },
                           { label: "Qty", value: one.qty },
                           { label: "From", value: <span translate="no">{one.origin ?? "Store stock"}</span> },
+                          { label: "Cost", value: money(one.costCents), className: "text-xs font-normal text-ink-3" },
                         ]
                       : [
                           { label: "Products", value: ls.length },
@@ -163,7 +172,8 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                               {l.origin && <span className="text-ink-3">{` · ${l.origin}`}</span>}
                             </span>
                             <span className="shrink-0 tabular-nums">
-                              {money(l.originalCents)} → {money(l.soldCents)} · {l.qty}
+                              {money(l.soldCents)} × {l.qty}
+                              <span className="ml-1 text-ink-3">{`(cost ${money(l.costCents)})`}</span>
                             </span>
                           </div>
                         ))}
@@ -182,7 +192,6 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
             <thead>
               <tr>
                 <th>Products</th>
-                <th className="num">Original price</th>
                 <th className="num">Sold unit price</th>
                 <th className="num">Qty</th>
                 <th className="num">Total</th>
@@ -215,14 +224,12 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                         {sale.source === "import" && <Badge>Imported</Badge>}
                       </div>
                     </td>
-                    <td className="num text-ink-2">
-                      {ls.map((l, i) => (
-                        <div key={i} className="whitespace-nowrap leading-6">{money(l.originalCents)}</div>
-                      ))}
-                    </td>
                     <td className="num font-medium">
                       {ls.map((l, i) => (
-                        <div key={i} className="whitespace-nowrap leading-6">{money(l.soldCents)}</div>
+                        <div key={i} className="whitespace-nowrap leading-6">
+                          {money(l.soldCents)}
+                          <span className="ml-1.5 text-[11px] font-normal text-ink-3">{`cost ${money(l.costCents)}`}</span>
+                        </div>
                       ))}
                     </td>
                     <td className="num">

@@ -12,7 +12,7 @@ export const metadata = { title: "New sale" };
 export default async function NewSalePage() {
   await requireUser("recordSales");
   const db = await getDb();
-  const [products, s, origins] = await Promise.all([getPickProducts(db), getSettings(db), listOrigins(db, true)]);
+  const [products, s, origins] = await Promise.all([getPickProducts(db, { withCost: true }), getSettings(db), listOrigins(db, true)]);
   return (
     <>
       <PageHeader title="New sale" />

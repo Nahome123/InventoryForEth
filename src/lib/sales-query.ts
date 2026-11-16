@@ -3,7 +3,7 @@ import type { Executor } from "./db/client";
 import { paymentMethod, products, saleItems, saleOrigins, sales, users, type PaymentMethod } from "./db/schema";
 
 /** origin: supplier name, or null for store stock. */
-export type SaleLineSummary = { name: string; qty: number; soldCents: number; originalCents: number; origin: string | null };
+export type SaleLineSummary = { name: string; qty: number; soldCents: number; costCents: number; origin: string | null };
 
 export type SalesFilter ={ from?: string; to?: string; method?: string; status?: string; product?: string; user?: string; q?: string; source?: string; origin?: string };
 
@@ -48,14 +48,14 @@ export function salesWhere(f: SalesFilter, tz: string): SQL | undefined {
 
 export async function listSales(db: Executor, f: SalesFilter, tz: string, limit: number, offset: number) {
   const where = salesWhere(f, tz);
-  const [rows, [totals]] = await Promise.all([
+  const [rows, [totals], [all]] = await Promise.all([
     db
       .select({
         sale: sales,
         by: users.fullName,
         items: sql<number>`(select coalesce(sum(${saleItems.quantity}),0)::int from ${saleItems} where ${saleItems.saleId} = ${sales.id})`,
         /** One entry per product line: sold unit price vs the product's own (original) price. */
-        lines: sql<SaleLineSummary[] | null>`(select json_agg(json_build_object('name', ${products.name}, 'qty', ${saleItems.quantity}, 'soldCents', ${saleItems.unitPriceCents}, 'originalCents', ${products.sellPriceCents}, 'origin', ${saleOrigins.name}) order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} left join ${saleOrigins} on ${saleOrigins.id} = ${saleItems.originId} where ${saleItems.saleId} = ${sales.id})`,
+        lines: sql<SaleLineSummary[] | null>`(select json_agg(json_build_object('name', ${products.name}, 'qty', ${saleItems.quantity}, 'soldCents', ${saleItems.unitPriceCents}, 'costCents', ${saleItems.unitCostCents}, 'origin', ${saleOrigins.name}) order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} left join ${saleOrigins} on ${saleOrigins.id} = ${saleItems.originId} where ${saleItems.saleId} = ${sales.id})`,
       })
       .from(sales)
       .leftJoin(users, eq(users.id, sales.userId))
@@ -68,9 +68,11 @@ export async function listSales(db: Executor, f: SalesFilter, tz: string, limit:
         count: sql<number>`count(*)::int`,
         revenue: sql<number>`coalesce(sum(case when ${sales.status} = 'completed' then ${sales.totalCents} else 0 end),0)::bigint`,
         completed: sql<number>`count(*) filter (where ${sales.status} = 'completed')::int`,
+        units: sql<number>`coalesce(sum(case when ${sales.status} = 'completed' then (select sum(${saleItems.quantity}) from ${saleItems} where ${saleItems.saleId} = ${sales.id}) else 0 end),0)::int`,
       })
       .from(sales)
       .where(where),
+    db.select({ count: sql<number>`count(*)::int` }).from(sales),
   ]);
-  return { rows, count: Number(totals.count), revenue: Number(totals.revenue), completed: Number(totals.completed) };
+  return { rows, count: Number(totals.count), revenue: Number(totals.revenue), completed: Number(totals.completed), units: Number(totals.units), totalSales: Number(all.count) };
 }

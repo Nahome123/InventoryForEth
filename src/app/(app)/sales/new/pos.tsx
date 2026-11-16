@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { CartLines, fmtMoney, ProductSearch, useCart, type OriginOption, type PickProduct } from "@/components/cart";
+import { CartLines, fmtMoney, parsePrice, ProductSearch, useCart, type OriginOption, type PickProduct } from "@/components/cart";
 import { Field, FormMessage, SubmitButton, useActionForm } from "@/components/form";
 import { createSaleAction } from "../actions";
 
@@ -42,7 +42,9 @@ export function PointOfSale({ products, currency, origins }: { products: PickPro
     }
   }, [state]);
 
-  const subtotal = cart.lines.reduce((s, l) => s + (byId.get(l.productId)?.priceCents ?? 0) * l.quantity, 0);
+  // There is no fixed selling price: the seller types the agreed price for each item.
+  const subtotal = cart.lines.reduce((s, l) => s + (parsePrice(l.price) ?? 0) * l.quantity, 0);
+  const missingPrice = cart.lines.some((l) => parsePrice(l.price) === null);
   const discountCents = toCents(discount);
   const total = subtotal - (discountCents ?? 0);
   const tenderedCents = toCents(tendered);
@@ -65,13 +67,13 @@ export function PointOfSale({ products, currency, origins }: { products: PickPro
             </Link>
           </div>
         )}
-        <ProductSearch products={products} currency={currency} onPick={(p) => cart.add(p.id)} />
+        <ProductSearch products={products} currency={currency} onPick={(p) => cart.add(p.id)} costOnly />
         <CartLines lines={cart.lines} products={byId} cart={cart} currency={currency} mode="sale" origins={origins} />
       </div>
 
       <form id="checkout" onSubmit={onSubmit} key={formKey} className="card h-fit scroll-mt-20 space-y-4 p-5 sm:p-6 lg:sticky lg:top-24">
         <FormMessage state={state?.error ? state : null} />
-        <input type="hidden" name="lines" value={JSON.stringify(cart.lines)} />
+        <input type="hidden" name="lines" value={JSON.stringify(cart.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, originId: l.originId ?? null, unitPriceCents: parsePrice(l.price) ?? undefined })))} />
         <fieldset>
           <legend className="label">Payment method</legend>
           <div className="grid grid-cols-2 gap-2">
@@ -124,8 +126,9 @@ export function PointOfSale({ products, currency, origins }: { products: PickPro
         </dl>
         {invalid && <p className="text-sm text-bad">Discount can&apos;t be more than the subtotal.</p>}
         {shortCash && <p className="text-sm text-bad">Cash received is less than the total.</p>}
+        {missingPrice && cart.lines.length > 0 && <p className="text-sm text-warn">Enter the agreed selling price for every item.</p>}
         {overStock && <p className="text-sm text-bad">Some quantities are more than what&apos;s in stock.</p>}
-        <SubmitButton pending={pending} className="btn-primary w-full py-3 text-base" disabled={!cart.lines.length || invalid || shortCash || overStock} pendingText="Recording…">
+        <SubmitButton pending={pending} className="btn-primary w-full py-3 text-base" disabled={!cart.lines.length || missingPrice || invalid || shortCash || overStock} pendingText="Recording…">
           Complete sale
         </SubmitButton>
         {cart.lines.length > 0 && (

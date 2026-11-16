@@ -13,11 +13,20 @@ export type PickProduct = {
   onHand: number;
   available: number;
   unit: string;
+  /** Buying price; only sent to the sale screen as a hint for the seller. */
+  costCents?: number;
 };
 
 /** originId: where the item came from; null/undefined = store stock (sales only). */
-export type CartLine = { productId: number; quantity: number; originId?: number | null };
+export type CartLine = { productId: number; quantity: number; originId?: number | null; /** Selling price as typed by the seller (sales only). */ price?: string };
 export type OriginOption = { id: number; name: string };
+
+/** "1,250.50" -> 125050; "" or invalid -> null. */
+export function parsePrice(s: string | undefined): number | null {
+  const t = (s ?? "").replace(/[,\s]/g, "");
+  if (!/^\d+(\.\d{0,2})?$/.test(t)) return null;
+  return Math.round(Number(t) * 100);
+}
 
 export function fmtMoney(cents: number, currency: string) {
   try {
@@ -43,6 +52,9 @@ export function useCart() {
     setQty(productId: number, qty: number) {
       setLines((ls) => ls.map((l) => (l.productId === productId ? { ...l, quantity: Math.max(1, Math.floor(qty) || 1) } : l)));
     },
+    setPrice(productId: number, price: string) {
+      setLines((ls) => ls.map((l) => (l.productId === productId ? { ...l, price } : l)));
+    },
     setOrigin(productId: number, originId: number | null) {
       setLines((ls) => ls.map((l) => (l.productId === productId ? { ...l, originId } : l)));
     },
@@ -56,7 +68,7 @@ export function useCart() {
 }
 
 /** Search box that also works with USB/Bluetooth barcode scanners (they type the code and press Enter). */
-export function ProductSearch({ products, onPick, currency, showStock = true }: { products: PickProduct[]; onPick: (p: PickProduct) => void; currency: string; showStock?: boolean }) {
+export function ProductSearch({ products, onPick, currency, showStock = true, costOnly = false }: { products: PickProduct[]; onPick: (p: PickProduct) => void; currency: string; showStock?: boolean; /** Sale screen: no fixed selling price, so show the buying price small instead. */ costOnly?: boolean }) {
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
@@ -112,7 +124,11 @@ export function ProductSearch({ products, onPick, currency, showStock = true }: 
                   <span className="font-mono text-xs text-ink-3">{p.sku}</span>
                 </span>
                 <span className="shrink-0 text-right text-sm">
-                  <span className="block tabular-nums">{fmtMoney(p.priceCents, currency)}</span>
+                  {costOnly ? (
+                    p.costCents !== undefined && <span className="block text-xs tabular-nums text-ink-3">{`Cost ${fmtMoney(p.costCents, currency)}`}</span>
+                  ) : (
+                    <span className="block tabular-nums">{fmtMoney(p.priceCents, currency)}</span>
+                  )}
                   {showStock && <span className={clsx("text-xs", p.available > 0 ? "text-ink-3" : "text-bad")}>{`${p.available} available`}</span>}
                 </span>
               </button>
@@ -148,13 +164,16 @@ export function CartLines({
         const over = mode === "sale" ? l.quantity > p.onHand : false;
         const intoReserved = mode === "sale" && !over && l.quantity > p.available;
         const short = mode === "order" && l.quantity > p.available;
+        const price = mode === "sale" ? parsePrice(l.price) : p.priceCents;
+        const belowCost = mode === "sale" && price !== null && p.costCents !== undefined && price < p.costCents;
         return (
           <li key={l.productId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
             <div className="w-full min-w-0 sm:w-auto sm:flex-1">
               <div className="truncate font-medium" translate="no">{p.name}</div>
               <div className="text-xs text-ink-3">
-                {`${mode !== "receive" ? `${fmtMoney(p.priceCents, currency)} · ` : ""}${p.onHand} on hand${p.onHand !== p.available ? `, ${p.available} available` : ""}`}
+                {`${mode === "order" ? `${fmtMoney(p.priceCents, currency)} · ` : mode === "sale" && p.costCents !== undefined ? `Cost ${fmtMoney(p.costCents, currency)} · ` : ""}${p.onHand} on hand${p.onHand !== p.available ? `, ${p.available} available` : ""}`}
               </div>
+              {belowCost && <div className="text-xs text-warn">Below cost</div>}
               {over && <div className="text-xs font-semibold text-bad">{`Only ${p.onHand} in stock`}</div>}
               {intoReserved && <div className="text-xs text-warn">Uses stock reserved for customer orders</div>}
               {short && <div className="text-xs text-warn">{`${l.quantity - Math.max(0, p.available)} short. You'll need to restock.`}</div>}
@@ -177,6 +196,19 @@ export function CartLines({
                 </label>
               )}
             </div>
+            {mode === "sale" && (
+              <label className="flex items-center gap-1.5">
+                <span className="text-xs text-ink-3">Price</span>
+                <input
+                  className={clsx("input w-28! text-right tabular-nums", l.price && price === null && "border-bad")}
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  aria-label={`Selling price of ${p.name}`}
+                  value={l.price ?? ""}
+                  onChange={(e) => cart.setPrice(l.productId, e.target.value)}
+                />
+              </label>
+            )}
             <div className="flex items-center gap-1">
               <button type="button" className="btn-secondary min-h-9 px-2" aria-label="Decrease" onClick={() => (l.quantity <= 1 ? cart.remove(l.productId) : cart.setQty(l.productId, l.quantity - 1))}>
                 <Minus size={16} />
@@ -194,7 +226,7 @@ export function CartLines({
                 <Plus size={16} />
               </button>
             </div>
-            {mode !== "receive" && <div className="ml-auto whitespace-nowrap text-right font-semibold tabular-nums">{fmtMoney(p.priceCents * l.quantity, currency)}</div>}
+            {mode !== "receive" && <div className="ml-auto whitespace-nowrap text-right font-semibold tabular-nums">{price === null ? "—" : fmtMoney(price * l.quantity, currency)}</div>}
             <button type="button" className={clsx("p-1 text-ink-3 hover:text-bad", mode === "receive" && "ml-auto")} aria-label={`Remove ${p.name}`} onClick={() => cart.remove(l.productId)}>
               <Trash2 size={18} />
             </button>
