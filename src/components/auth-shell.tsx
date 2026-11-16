@@ -1,6 +1,7 @@
 import { BarChart3, Boxes, Check, ClipboardList, ShoppingCart, Store } from "lucide-react";
 import { LangToggle } from "./lang-toggle";
-import { getLang } from "@/lib/i18n/server";
+import { ThemeToggle } from "./theme-toggle";
+import { getLang, getTheme } from "@/lib/i18n/server";
 
 const FEATURES = [
   {
@@ -32,6 +33,7 @@ export async function AuthShell({ storeName, title, subtitle, children }: { stor
         </span>
         <span className="min-w-0 flex-1 truncate font-display text-[17px] font-semibold">{storeName}</span>
         <LangToggle lang={await getLang()} />
+        <ThemeToggle theme={await getTheme()} />
       </header>
 
       <main className="mx-auto grid w-full max-w-7xl flex-1 items-start gap-6 px-4 pb-12 pt-4 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-10">

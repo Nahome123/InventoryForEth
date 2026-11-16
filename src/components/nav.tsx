@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { LangToggle } from "./lang-toggle";
-import type { Lang } from "@/lib/i18n/lang";
+import { ThemeToggle } from "./theme-toggle";
+import type { Lang, Theme } from "@/lib/i18n/lang";
 import { BarChart3, Boxes, ChevronDown, ClipboardList, LayoutDashboard, LogOut, Menu, Package, Plus, Receipt, Settings, ShoppingCart, Store, Upload, X } from "lucide-react";
 
 const ICONS = { LayoutDashboard, ShoppingCart, Receipt, ClipboardList, Package, Boxes, BarChart3, Upload, Settings };
@@ -38,7 +39,7 @@ function initials(name: string) {
 }
 
 /** Desktop header: logo, links, primary action and the account menu. */
-export function TopNav({ items, storeName, userName, roleLabel, canSell, lang, logout }: { items: NavItem[]; storeName: string; userName: string; roleLabel: string; canSell: boolean; lang: Lang; logout: () => Promise<void> }) {
+export function TopNav({ items, storeName, userName, roleLabel, canSell, lang, theme, logout }: { items: NavItem[]; storeName: string; userName: string; roleLabel: string; canSell: boolean; lang: Lang; theme: Theme; logout: () => Promise<void> }) {
   const pathname = usePathname();
   const links = items.filter((i) => !(canSell && i.href === "/sales/new"));
   return (
@@ -78,6 +79,7 @@ export function TopNav({ items, storeName, userName, roleLabel, canSell, lang, l
 
         <div className="flex shrink-0 items-center gap-3">
           <LangToggle lang={lang} />
+          <ThemeToggle theme={theme} />
           {canSell && (
             <Link href="/sales/new" className="btn-primary">
               <Plus size={16} aria-hidden /> New sale
@@ -108,7 +110,7 @@ export function TopNav({ items, storeName, userName, roleLabel, canSell, lang, l
 }
 
 /** Phone header + bottom tab bar with a raised Sell button and a slide-up menu sheet. */
-export function MobileNav({ items, storeName, userName, roleLabel, canSell, lang, logout }: { items: NavItem[]; storeName: string; userName: string; roleLabel: string; canSell: boolean; lang: Lang; logout: () => Promise<void> }) {
+export function MobileNav({ items, storeName, userName, roleLabel, canSell, lang, theme, logout }: { items: NavItem[]; storeName: string; userName: string; roleLabel: string; canSell: boolean; lang: Lang; theme: Theme; logout: () => Promise<void> }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -139,6 +141,7 @@ export function MobileNav({ items, storeName, userName, roleLabel, canSell, lang
           <Logo storeName={storeName} />
         </div>
         <LangToggle lang={lang} />
+        <ThemeToggle theme={theme} />
         <button type="button" onClick={() => setMenuOpen(true)} aria-label="Account and menu" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-fg">
           {initials(userName)}
         </button>

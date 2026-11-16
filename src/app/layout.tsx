@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Noto_Sans_Ethiopic, Space_Grotesk } from "next/font/google";
 import { Translator } from "@/components/translator";
-import { getLang } from "@/lib/i18n/server";
+import { getLang, getTheme } from "@/lib/i18n/server";
 import "./globals.css";
 
 const heading = Space_Grotesk({ subsets: ["latin"], variable: "--font-heading", display: "swap" });
@@ -21,16 +21,13 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f1f0f3" },
-    { media: "(prefers-color-scheme: dark)", color: "#141316" },
-  ],
+  themeColor: "#fcfbfa",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const lang = await getLang();
+  const [lang, theme] = await Promise.all([getLang(), getTheme()]);
   return (
-    <html lang={lang} data-lang={lang} className={`${heading.variable} ${body.variable} ${code.variable} ${ethiopic.variable}`}>
+    <html lang={lang} data-lang={lang} style={{ colorScheme: theme }} className={`${theme === "dark" ? "dark " : ""}${heading.variable} ${body.variable} ${code.variable} ${ethiopic.variable}`}>
       <body className="min-h-dvh font-sans antialiased">
         {children}
         <Translator lang={lang} />
