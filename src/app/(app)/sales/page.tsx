@@ -131,7 +131,12 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
         <StatTile label="Revenue" value={money(revenue)} />
       </div>
 
-      <SalesList rows={rows} money={money} timezone={s.timezone} empty={sp.q ? `Not found: no sales match “${sp.q}”.` : "No sales match these filters."} />
+      <SalesList
+        rows={rows}
+        money={money}
+        timezone={s.timezone}
+        edit={can(user.role, "editSales") ? { origins: origins.map(({ id, name }) => ({ id, name })), currency: s.currency } : undefined}
+        empty={sp.q ? `Not found: no sales match “${sp.q}”.` : "No sales match these filters."} />
       <Pagination page={page} hasMore={page * PAGE < count} makeHref={qs} />
     </>
   );

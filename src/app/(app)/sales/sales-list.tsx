@@ -1,12 +1,45 @@
 import Link from "next/link";
 import type { listSales } from "@/lib/sales-query";
-import { formatDateTime, saleNo } from "@/lib/format";
+import { formatDateTime, saleNo, toLocalInput } from "@/lib/format";
+import { EditSaleButton } from "./edit-sale";
 import { Badge, Empty, MobileCard, MobileList, TableWrap } from "@/components/ui";
 
 type Rows = Awaited<ReturnType<typeof listSales>>["rows"];
 
 /** Sales as cards on phones and a table from `sm` up. Used by Sales history and Voided sales. */
-export function SalesList({ rows, money, timezone, empty, voided = false }: { rows: Rows; money: (c: number) => string; timezone: string; empty: string; voided?: boolean }) {
+export function SalesList({
+  rows,
+  money,
+  timezone,
+  empty,
+  voided = false,
+  edit,
+}: {
+  rows: Rows;
+  money: (c: number) => string;
+  timezone: string;
+  empty: string;
+  voided?: boolean;
+  /** Present when the viewer may edit sales. */
+  edit?: { origins: { id: number; name: string }[]; currency: string };
+}) {
+  const editButton = (sale: Rows[number]["sale"], ls: NonNullable<Rows[number]["lines"]>) =>
+    edit && !voided ? (
+      <EditSaleButton
+        currency={edit.currency}
+        origins={edit.origins}
+        imported={sale.source === "import"}
+        sale={{
+          id: sale.id,
+          label: saleNo(sale.id),
+          customerName: sale.customerName,
+          soldAtLocal: toLocalInput(sale.soldAt, timezone),
+          paymentMethod: sale.paymentMethod,
+          discountCents: sale.discountCents,
+          lines: ls.map((l) => ({ id: l.id, name: l.name, sku: l.sku, qty: l.qty, soldCents: l.soldCents, originId: l.originId })),
+        }}
+      />
+    ) : null;
   if (rows.length === 0)
     return (
       <TableWrap>
@@ -24,6 +57,7 @@ export function SalesList({ rows, money, timezone, empty, voided = false }: { ro
               key={sale.id}
               href={`/sales/${sale.id}`}
               muted={voided}
+              action={editButton(sale, ls)}
               title={ls.map((l) => l.name).join(", ") || "—"}
               subtitle={
                 <>
@@ -85,6 +119,11 @@ export function SalesList({ rows, money, timezone, empty, voided = false }: { ro
                 <th className="hidden md:table-cell">When</th>
                 <th className="hidden lg:table-cell">Customer</th>
                 <th className="hidden xl:table-cell">{voided ? "Reason" : "By"}</th>
+                {edit && !voided && (
+                  <th className="w-10">
+                    <span className="sr-only">Edit</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -135,6 +174,7 @@ export function SalesList({ rows, money, timezone, empty, voided = false }: { ro
                     <td className="hidden whitespace-nowrap leading-6 text-ink-2 md:table-cell">{formatDateTime(sale.soldAt, timezone)}</td>
                     <td className="hidden leading-6 lg:table-cell">{sale.customerName ?? "—"}</td>
                     <td className="hidden leading-6 text-ink-2 xl:table-cell">{voided ? (sale.voidReason ?? "—") : (by ?? "—")}</td>
+                    {edit && !voided && <td className="py-1.5">{editButton(sale, ls)}</td>}
                   </tr>
                 );
               })}

@@ -8,6 +8,7 @@ const MATRIX = {
   manageProducts: ["owner", "manager"],
   adjustStock: ["owner", "manager"],
   voidSales: ["owner", "manager"],
+  editSales: ["owner", "manager"],
   viewAnalytics: ["owner", "manager"],
   importExport: ["owner", "manager"],
   manageUsers: ["owner"],

@@ -116,6 +116,7 @@ export function MobileCard({
   facts,
   footer,
   muted,
+  action,
 }: {
   href?: string;
   title: React.ReactNode;
@@ -125,6 +126,8 @@ export function MobileCard({
   facts?: Fact[];
   footer?: React.ReactNode;
   muted?: boolean;
+  /** A button shown in the card's bottom-right corner, outside the link. */
+  action?: React.ReactNode;
 }) {
   const inner = (
     <>
@@ -153,6 +156,11 @@ export function MobileCard({
       {footer && <div className="mt-3 flex flex-wrap items-center gap-1.5">{footer}</div>}
     </>
   );
-  const cls = clsx("card block p-4", muted && "opacity-70", href && "transition active:scale-[0.99]");
-  return <li>{href ? <Link href={href} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>}</li>;
+  const cls = clsx("card block p-4", action && "pb-12", muted && "opacity-70", href && "transition active:scale-[0.99]");
+  return (
+    <li className={action ? "relative" : undefined}>
+      {href ? <Link href={href} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>}
+      {action && <div className="absolute bottom-2 right-2">{action}</div>}
+    </li>
+  );
 }

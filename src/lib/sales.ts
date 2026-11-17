@@ -133,3 +133,65 @@ export async function voidSale(db: Executor, saleId: number, userId: number, rea
     }
   });
 }
+
+export type EditSaleInput = {
+  customerName: string | null;
+  /** undefined = keep, null = date unknown. */
+  soldAt?: Date | null;
+  paymentMethod: PaymentMethod;
+  lines: { id: number; quantity: number; unitPriceCents: number; originId: number | null }[];
+};
+
+/**
+ * Corrects a completed sale: quantities, agreed prices, item origin, customer, date and payment.
+ * If the sale took stock, quantity changes move stock by the difference (recorded as sale rows,
+ * so voiding later still returns exactly what the sale holds). Imported sales never touch stock.
+ */
+export async function editSale(db: Executor, saleId: number, userId: number, input: EditSaleInput) {
+  if (!paymentMethodEnum.enumValues.includes(input.paymentMethod)) throw new UserError("Unknown payment method.");
+  return db.transaction(async (tx) => {
+    const [sale] = await tx.select().from(sales).where(eq(sales.id, saleId)).for("update");
+    if (!sale) throw new UserError("Sale not found.");
+    if (sale.status !== "completed") throw new UserError("Voided sales can't be edited.");
+    const items = await tx.select().from(saleItems).where(eq(saleItems.saleId, saleId));
+    const byId = new Map(items.map((i) => [i.id, i]));
+    const tookStock = (await tx.select({ id: stockMovements.id }).from(stockMovements).where(and(eq(stockMovements.saleId, saleId), eq(stockMovements.type, "sale"))).limit(1)).length > 0;
+
+    const originIds = [...new Set(input.lines.map((l) => l.originId).filter((o): o is number => !!o))];
+    if (originIds.length) {
+      const found = await tx.select({ id: saleOrigins.id }).from(saleOrigins).where(inArray(saleOrigins.id, originIds));
+      if (found.length !== originIds.length) throw new UserError("One of the chosen item origins no longer exists.");
+    }
+
+    let subtotal = 0;
+    const seen = new Set<number>();
+    for (const l of input.lines) {
+      const item = byId.get(l.id);
+      if (!item || seen.has(l.id)) throw new UserError("This sale changed in the meantime. Reload and try again.");
+      seen.add(l.id);
+      if (!Number.isInteger(l.quantity) || l.quantity < 1) throw new UserError("Each quantity must be a whole number of at least 1.");
+      if (!Number.isInteger(l.unitPriceCents) || l.unitPriceCents < 0) throw new UserError("Prices can't be negative.");
+      const delta = l.quantity - item.quantity;
+      if (delta !== 0 && tookStock) {
+        await applyMovement(tx, { productId: item.productId, type: "sale", quantity: -delta, saleId, userId, note: "Sale edited" });
+      }
+      const lineTotal = l.unitPriceCents * l.quantity;
+      subtotal += lineTotal;
+      await tx.update(saleItems).set({ quantity: l.quantity, unitPriceCents: l.unitPriceCents, lineTotalCents: lineTotal, originId: l.originId }).where(eq(saleItems.id, l.id));
+    }
+    for (const i of items) if (!seen.has(i.id)) subtotal += i.lineTotalCents;
+
+    const discount = Math.min(sale.discountCents, subtotal);
+    await tx
+      .update(sales)
+      .set({
+        customerName: input.customerName?.trim() || null,
+        paymentMethod: input.paymentMethod,
+        ...(input.soldAt !== undefined ? { soldAt: input.soldAt } : {}),
+        subtotalCents: subtotal,
+        discountCents: discount,
+        totalCents: subtotal - discount,
+      })
+      .where(eq(sales.id, saleId));
+  });
+}

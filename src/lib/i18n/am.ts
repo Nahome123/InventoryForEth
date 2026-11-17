@@ -486,6 +486,15 @@ export const AM: Record<string, string> = {
   "Stock status": "የክምችት ሁኔታ",
   "← Inventory": "← ክምችት",
   "Total qty": "ጠቅላላ ብዛት",
+  "Save changes": "ለውጦቹን አስቀምጥ",
+  "Date & time": "ቀን እና ሰዓት",
+  "Leave blank if unknown.": "ካልታወቀ ባዶ ይተዉ።",
+  "New total": "አዲስ ጠቅላላ",
+  "Sale updated.": "ሽያጩ ተስተካክሏል።",
+  "Edit sale": "ሽያጩን አስተካክል",
+  "Imported sale: changing quantities won't change stock.": "ከውጭ የገባ ሽያጭ፦ ብዛት መቀየር ክምችትን አይቀይርም።",
+  "Changing a quantity also moves stock by the difference.": "ብዛት መቀየር ክምችቱንም በልዩነቱ ያንቀሳቅሳል።",
+  "Voided sales can't be edited.": "የተሰረዙ ሽያጮች ሊስተካከሉ አይችሉም።",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
@@ -540,6 +549,8 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^Edit sale (S-\d+)$/, (m) => `ሽያጭ ${m[1]} አስተካክል`],
+  [/^After (.+) discount$/, (m) => `${m[1]} ቅናሽ ከተቀነሰ በኋላ`],
   [/^(\d+) products? · (-?\d+) total · (-?\d+) in stock · (\d+) sold$/, (m) => `${m[1]} ምርቶች · ${m[2]} ጠቅላላ · ${m[3]} በክምችት · ${m[4]} የተሸጡ`],
   [/^(\d+) products? · (-?\d+) in stock · (\d+) sold$/, (m) => `${m[1]} ምርቶች · ${m[2]} በክምችት · ${m[3]} የተሸጡ`],
   [/^(\d+) products?$/, (m) => `${m[1]} ምርቶች`],

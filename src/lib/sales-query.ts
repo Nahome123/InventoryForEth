@@ -5,7 +5,7 @@ import { SALES_ID } from "./db/outer";
 import { paymentMethod, products, saleItems, saleOrigins, sales, users, type PaymentMethod } from "./db/schema";
 
 /** origin: supplier name, or null for store stock. */
-export type SaleLineSummary = { name: string; sku: string; qty: number; soldCents: number; costCents: number; origin: string | null };
+export type SaleLineSummary = { id: number; originId: number | null; name: string; sku: string; qty: number; soldCents: number; costCents: number; origin: string | null };
 
 export type SalesFilter ={ from?: string; to?: string; method?: string; status?: string; product?: string; user?: string; q?: string; source?: string; origin?: string };
 
@@ -57,7 +57,7 @@ export async function listSales(db: Executor, f: SalesFilter, tz: string, limit:
         by: users.fullName,
         items: sql<number>`(select coalesce(sum(${saleItems.quantity}),0)::int from ${saleItems} where ${saleItems.saleId} = ${SALES_ID})`,
         /** One entry per product line: sold unit price vs the product's own (original) price. */
-        lines: sql<SaleLineSummary[] | null>`(select json_agg(json_build_object('name', ${products.name}, 'sku', ${products.sku}, 'qty', ${saleItems.quantity}, 'soldCents', ${saleItems.unitPriceCents}, 'costCents', ${saleItems.unitCostCents}, 'origin', ${saleOrigins.name}) order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} left join ${saleOrigins} on ${saleOrigins.id} = ${saleItems.originId} where ${saleItems.saleId} = ${SALES_ID})`,
+        lines: sql<SaleLineSummary[] | null>`(select json_agg(json_build_object('id', ${saleItems.id}, 'originId', ${saleItems.originId}, 'name', ${products.name}, 'sku', ${products.sku}, 'qty', ${saleItems.quantity}, 'soldCents', ${saleItems.unitPriceCents}, 'costCents', ${saleItems.unitCostCents}, 'origin', ${saleOrigins.name}) order by ${saleItems.id}) from ${saleItems} join ${products} on ${products.id} = ${saleItems.productId} left join ${saleOrigins} on ${saleOrigins.id} = ${saleItems.originId} where ${saleItems.saleId} = ${SALES_ID})`,
       })
       .from(sales)
       .leftJoin(users, eq(users.id, sales.userId))

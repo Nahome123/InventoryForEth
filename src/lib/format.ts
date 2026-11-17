@@ -6,6 +6,17 @@ export function formatDateTime(d: Date | string | null, timeZone?: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(d));
 }
 
+/** Value for an <input type="datetime-local"> showing `d` in the store's time zone. */
+export function toLocalInput(d: Date | string | null, timeZone: string): string {
+  if (d === null) return "";
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(new Date(d))
+      .map((p) => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
 export function formatDate(d: Date | string | null, timeZone?: string) {
   if (d === null) return "—";
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone }).format(new Date(d));
