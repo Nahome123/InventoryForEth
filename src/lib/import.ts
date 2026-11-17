@@ -7,9 +7,11 @@ import { parseMoneyToCents } from "./money";
 import { createProductTx, findOrCreateCategory, parseProductInput } from "./products";
 import { createSaleTx } from "./sales";
 
+/** Same layout as the shop's purchase sheets. Only Product and SKU are needed; everything else is optional. */
 export const PRODUCT_TEMPLATE =
-  "name,sku,barcode,category,unit,cost_price,sell_price,opening_stock,reorder_level,reorder_qty,lead_time_days,supplier\n" +
-  "Bic Pen Blue,PEN-BLUE,0070330717534,Stationery,pcs,0.20,0.50,120,30,100,7,Main Wholesaler\n";
+  "Product,SKU,Stock Qty,item cost,TOTAL IN BIRR\n" +
+  "Fuel Lift Pump,413A018,50,10830,541500\n" +
+  "HITACHI FILTER,YA00037134,40,3420,136800\n";
 
 export const SALES_TEMPLATE =
   "date,receipt,sku,quantity,unit_price,payment_method,customer\n" +
@@ -22,16 +24,51 @@ export type ImportResult = { created: number; updated: number; sales?: number; l
 /** `batch` set: every row becomes a new product in a new, separate batch. Otherwise rows update/create "earlier stock" products. */
 export type ProductImportOptions = { batch?: { name: string; supplier: string | null } };
 
-const norm = (h: string) => h.trim().toLowerCase().replace(/[\s-]+/g, "_");
+/** "TOTAL IN BIRR" → "total_in_birr", "Unit price (ETB)" → "unit_price_etb". */
+const norm = (h: string) =>
+  h
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 
+/** Header names we recognise; used to find the header row when a sheet has a title above it. */
+const KNOWN = new Set([
+  "name", "product", "product_name", "item", "item_name", "description", "sku", "code", "product_code", "part_no", "part_number", "part",
+  "date", "sold_at", "sale_date", "quantity", "qty", "stock_qty", "stock", "opening_stock", "cost", "item_cost", "cost_price", "unit_cost",
+  "sell_price", "selling_price", "price", "unit_price", "receipt", "barcode", "category", "supplier",
+]);
+
+/**
+ * Reads a CSV saved from Excel. Tolerates title rows above the header, blank columns and rows,
+ * and any header spelling/case ("Stock Qty", "item cost"…). Each row keeps its file line number in `__row`.
+ */
 export function parseCsv(text: string): Record<string, string>[] {
-  const res = Papa.parse<Record<string, string>>(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: "greedy", transformHeader: norm });
-  if (res.errors.length) {
+  const res = Papa.parse<string[]>(text.replace(/^\uFEFF/, ""), { header: false, skipEmptyLines: false });
+  if (res.errors.length && !res.data.length) {
     const e = res.errors[0];
-    throw new UserError(`Couldn't read the CSV${e.row !== undefined ? ` (row ${e.row + 2})` : ""}: ${e.message}`);
+    throw new UserError(`Couldn't read the CSV${e.row !== undefined ? ` (row ${e.row + 1})` : ""}: ${e.message}`);
   }
-  return res.data.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === "string" ? v.trim() : ""])));
+  const lines = res.data.map((r) => (Array.isArray(r) ? r.map((c) => String(c ?? "").trim()) : []));
+  const headerAt = lines.slice(0, 15).findIndex((r) => r.filter((c) => KNOWN.has(norm(c))).length >= 2);
+  const h = headerAt === -1 ? lines.findIndex((r) => r.some((c) => c !== "")) : headerAt;
+  if (h === -1) return [];
+  const headers = lines[h].map(norm);
+  const out: Record<string, string>[] = [];
+  for (let i = h + 1; i < lines.length; i++) {
+    const cells = lines[i];
+    if (!cells.some((c) => c !== "")) continue;
+    const row: Record<string, string> = { __row: String(i + 1) };
+    headers.forEach((key, j) => {
+      if (key && row[key] === undefined) row[key] = cells[j] ?? "";
+    });
+    out.push(row);
+  }
+  return out;
 }
+
+/** "1,250" / "ETB 1 250.50" → "1250" / "1250.50". */
+const cleanNum = (v: string) => v.replace(/[,\s]/g, "").replace(/^[^\d.-]+/, "").replace(/[^\d.]+$/, "");
 
 const pick = (r: Record<string, string>, ...keys: string[]) => {
   for (const k of keys) if (r[k] !== undefined && r[k] !== "") return r[k];
@@ -40,27 +77,39 @@ const pick = (r: Record<string, string>, ...keys: string[]) => {
 
 /** Creates new products and updates existing ones (matched by SKU). All-or-nothing. */
 export async function importProducts(db: Executor, csv: string, userId: number, opts: ProductImportOptions = {}): Promise<ImportResult> {
-  const rows = parseCsv(csv);
+  // Skip a "TOTAL" summary line at the bottom of a sheet (has a total but no part number).
+  const rows = parseCsv(csv).filter((r) => !(/^(grand\s*)?total\b/i.test(pick(r, "name", "product", "product_name", "item", "item_name")) && !pick(r, "sku", "code", "product_code", "part_no", "part_number", "part")));
   if (!rows.length) throw new UserError("The file has no data rows.");
   if (rows.length > 5000) throw new UserError("Please import at most 5,000 rows at a time.");
   const errors: string[] = [];
   const seen = new Set<string>();
-  const parsed = rows.map((r, i) => {
+  const parsed = rows.map((r) => {
+    const name = pick(r, "name", "product", "product_name", "item", "item_name", "description");
+    const qty = cleanNum(pick(r, "opening_stock", "stock_qty", "stock", "quantity", "qty"));
+    let cost = cleanNum(pick(r, "cost_price", "item_cost", "unit_cost", "cost", "unit_price_including_freight_in_etb", "unit_price_etb"));
+    const total = cleanNum(pick(r, "total_in_birr", "total_birr", "total_etb", "total"));
+    // No unit cost but a line total: unit cost = total ÷ quantity.
+    if (!cost && total && Number(qty) > 0) cost = (Math.round((Number(total) / Number(qty)) * 100) / 100).toFixed(2);
+    // Sellers agree the price at each sale, so a selling price is optional (defaults to the cost).
+    const sell = cleanNum(pick(r, "sell_price", "selling_price", "price")) || cost || "0";
+    // Part numbers may contain spaces in Excel ("SA 4335"); turn them into dashes.
+    const sku = pick(r, "sku", "code", "product_code", "part_no", "part_number", "part").replace(/\s+/g, "-");
     const raw = {
-      name: pick(r, "name", "product_name", "product"),
-      sku: pick(r, "sku", "code", "product_code"),
+      name,
+      sku,
       barcode: pick(r, "barcode", "upc", "ean"),
       category: pick(r, "category"),
       unit: pick(r, "unit"),
-      costPrice: pick(r, "cost_price", "cost"),
-      sellPrice: pick(r, "sell_price", "selling_price", "price"),
-      reorderLevel: pick(r, "reorder_level", "min_stock"),
-      reorderQty: pick(r, "reorder_qty", "reorder_quantity"),
-      leadTimeDays: pick(r, "lead_time_days", "lead_time"),
+      costPrice: cost,
+      sellPrice: sell,
+      reorderLevel: cleanNum(pick(r, "reorder_level", "min_stock")),
+      reorderQty: cleanNum(pick(r, "reorder_qty", "reorder_quantity")),
+      leadTimeDays: cleanNum(pick(r, "lead_time_days", "lead_time")),
       supplier: opts.batch?.supplier || pick(r, "supplier"),
-      description: pick(r, "description"),
-      openingStock: pick(r, "opening_stock", "stock", "quantity", "qty"),
+      description: name !== pick(r, "description") ? pick(r, "description") : "",
+      openingStock: qty,
     };
+    const rowNo = r.__row;
     try {
       parseProductInput(raw);
       const os = raw.openingStock === "" ? 0 : Number(raw.openingStock);
@@ -69,9 +118,9 @@ export async function importProducts(db: Executor, csv: string, userId: number, 
       if (seen.has(key)) throw new UserError(`SKU "${raw.sku}" appears more than once in the file.`);
       seen.add(key);
     } catch (e) {
-      errors.push(`Row ${i + 2}: ${e instanceof Error ? e.message : String(e)}`);
+      errors.push(`Row ${rowNo}: ${e instanceof Error ? e.message : String(e)}`);
     }
-    return raw;
+    return { ...raw, rowNo };
   });
   if (errors.length) return { created: 0, updated: 0, errors };
 
@@ -92,7 +141,7 @@ export async function importProducts(db: Executor, csv: string, userId: number, 
             .from(products)
             .where(and(inArray(sql`lower(${products.sku})`, [...seen]), isNull(products.batchId)));
       const bySku = new Map(existing.map((e) => [e.sku.toLowerCase(), e.id]));
-      for (const [i, raw] of parsed.entries()) {
+      for (const { rowNo, ...raw } of parsed) {
         try {
           const id = bySku.get(raw.sku.toLowerCase());
           if (id) {
@@ -121,7 +170,7 @@ export async function importProducts(db: Executor, csv: string, userId: number, 
             created++;
           }
         } catch (e) {
-          throw new UserError(`Row ${i + 2}: ${e instanceof UserError ? e.message : (e as { code?: string })?.code === "23505" ? "barcode already used by another product" : String(e)}`);
+          throw new UserError(`Row ${rowNo}: ${e instanceof UserError ? e.message : (e as { code?: string })?.code === "23505" ? "barcode already used by another product" : String(e)}`);
         }
       }
     });
@@ -171,7 +220,7 @@ export async function importSales(db: Executor, csv: string, opts: { userId: num
   if (!rows.length) throw new UserError("The file has no data rows.");
   if (rows.length > 20000) throw new UserError("Please import at most 20,000 rows at a time.");
   const errors: string[] = [];
-  const skus = [...new Set(rows.map((r) => pick(r, "sku", "code", "product_code").toLowerCase()).filter(Boolean))];
+  const skus = [...new Set(rows.map((r) => pick(r, "sku", "code", "product_code", "part_no", "part_number", "part").replace(/\s+/g, "-").toLowerCase()).filter(Boolean))];
   const prods = skus.length
     ? await db
         .select()
@@ -183,12 +232,12 @@ export async function importSales(db: Executor, csv: string, opts: { userId: num
 
   type Group = { soldAt: Date | null; method: PaymentMethod; customer: string; items: { productId: number; quantity: number; unitPriceCents: number }[] };
   const groups = new Map<string, Group>();
-  rows.forEach((r, i) => {
-    const rowNo = i + 2;
+  rows.forEach((r) => {
+    const rowNo = r.__row;
     const dateStr = pick(r, "date", "sold_at", "sale_date");
-    const sku = pick(r, "sku", "code", "product_code");
-    const qty = Number(pick(r, "quantity", "qty"));
-    const priceStr = pick(r, "unit_price", "price");
+    const sku = pick(r, "sku", "code", "product_code", "part_no", "part_number", "part").replace(/\s+/g, "-");
+    const qty = Number(cleanNum(pick(r, "quantity", "qty")));
+    const priceStr = cleanNum(pick(r, "unit_price", "price", "sold_price", "sell_price"));
     const method = (pick(r, "payment_method", "payment") || "cash").toLowerCase().replace(/\s+/g, "_") as PaymentMethod;
     const soldAt = dateStr ? parseLocalDateTime(dateStr, opts.timeZone) : null;
     const p = bySku.get(sku.toLowerCase());

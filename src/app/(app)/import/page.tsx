@@ -24,8 +24,9 @@ export default async function ImportPage() {
         <section className="card space-y-3 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">1. Import products</h2>
           <p className="text-sm text-ink-2">
-            Required columns: <code>name</code>, <code>sku</code>, <code>sell_price</code>. Optional: barcode, category, unit, cost_price, opening_stock, reorder_level, reorder_qty, lead_time_days, supplier.
-            Each import can be its own <strong>batch</strong> (one shipment from one supplier), kept separate from earlier stock.
+            Just use your purchase sheet: <code>Product</code>, <code>SKU</code>, <code>Stock Qty</code>, <code>item cost</code> (or <code>TOTAL IN BIRR</code>, and the unit cost is worked out). Only
+            Product and SKU are required; no selling price is needed. Title rows, blank rows and a TOTAL row are skipped. Each import can be its own <strong>batch</strong> (one
+            shipment from one supplier), kept separate from earlier stock.
           </p>
           <a className="text-sm text-accent-fg underline" href="/api/export/template-products">
             Download products template
