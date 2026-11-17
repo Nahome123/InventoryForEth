@@ -15,6 +15,8 @@ export type PickProduct = {
   unit: string;
   /** Buying price; only sent to the sale screen as a hint for the seller. */
   costCents?: number;
+  /** Import batch name, when the product belongs to one (the same part can exist in several batches). */
+  batch?: string;
 };
 
 /** originId: where the item came from; null/undefined = store stock (sales only). */
@@ -122,6 +124,7 @@ export function ProductSearch({ products, onPick, currency, showStock = true, co
                 <span className="min-w-0">
                   <span className="block truncate font-medium" translate="no">{p.name}</span>
                   <span className="font-mono text-xs text-ink-3">{p.sku}</span>
+                  {p.batch && <span className="ml-1.5 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-ink-2" translate="no">{p.batch}</span>}
                 </span>
                 <span className="shrink-0 text-right text-sm">
                   {costOnly ? (
@@ -169,7 +172,10 @@ export function CartLines({
         return (
           <li key={l.productId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
             <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-              <div className="truncate font-medium" translate="no">{p.name}</div>
+              <div className="truncate font-medium" translate="no">
+                {p.name}
+                {p.batch && <span className="ml-1.5 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-normal text-ink-2">{p.batch}</span>}
+              </div>
               <div className="text-xs text-ink-3">
                 {`${mode === "order" ? `${fmtMoney(p.priceCents, currency)} · ` : mode === "sale" && p.costCents !== undefined ? `Cost ${fmtMoney(p.costCents, currency)} · ` : ""}${p.onHand} on hand${p.onHand !== p.available ? `, ${p.available} available` : ""}`}
               </div>

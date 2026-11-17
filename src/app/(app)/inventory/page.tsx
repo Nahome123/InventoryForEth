@@ -2,6 +2,8 @@ import Link from "next/link";
 import { eq, sql } from "drizzle-orm";
 import { saleItems, sales } from "@/lib/db/schema";
 import { SupplierGroups } from "./supplier-groups";
+import { batchOptions, parseBatch } from "@/lib/batches";
+import { BatchFilter } from "@/components/batch-filter";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { getSettings } from "@/lib/analytics";
@@ -13,11 +15,12 @@ import { Empty, MobileCard, MobileList, PageHeader, StatTile, StockBadge, TableW
 
 export const metadata = { title: "Inventory" };
 
-export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; group?: string }> }) {
+export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; group?: string; batch?: string }> }) {
   const user = await requireUser("viewInventory");
   const sp = await searchParams;
   const db = await getDb();
-  const [levels, s, soldRows] = await Promise.all([
+  const batch = parseBatch(sp.batch);
+  const [allLevels, s, soldRows, { options: batchOpts }] = await Promise.all([
     getStockLevels(db),
     getSettings(db),
     db
@@ -26,7 +29,10 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
       .innerJoin(sales, eq(sales.id, saleItems.saleId))
       .where(eq(sales.status, "completed"))
       .groupBy(saleItems.productId),
+    batchOptions(db),
   ]);
+  // Batch filter: every number on the page covers only that import batch.
+  const levels = batch === undefined ? allLevels : allLevels.filter((l) => l.batchId === batch);
   const sold = new Map(soldRows.map((r) => [r.productId, Number(r.qty)]));
   const showCosts = can(user.role, "viewCosts");
   const out = levels.filter((l) => l.status === "out");
@@ -59,6 +65,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
           </>
         }
       />
+      <BatchFilter options={batchOpts} value={sp.batch} />
       <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
         <StatTile label="Active products" value={levels.length} hint={`${reserved} units reserved for orders`} />
         <StatTile label="Out of stock" value={out.length} href="/inventory?status=out" />
@@ -67,6 +74,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
       </div>
 
       <SupplierGroups
+        base={sp.batch ? `batch=${encodeURIComponent(sp.batch)}` : ""}
         selected={sp.group}
         canReceive={can(user.role, "adjustStock")}
         money={showCosts ? (c: number) => formatMoney(c, s.currency) : null}

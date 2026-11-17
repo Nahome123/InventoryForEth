@@ -1,25 +1,67 @@
 "use client";
 
-import { useActionState } from "react";
-import { FormMessage, SubmitButton } from "@/components/form";
+import { useActionState, useState } from "react";
+import { Field, FormMessage, SubmitButton } from "@/components/form";
 import { importProductsAction, importSalesAction } from "./actions";
 
-export function ProductImportForm() {
+export function ProductImportForm({ suppliers, suggestedName }: { suppliers: string[]; suggestedName: string }) {
   const [state, action] = useActionState(importProductsAction, null);
+  const [mode, setMode] = useState<"new" | "update">("new");
   return (
     <form action={action} className="space-y-3">
       <FormMessage state={state} />
+      <fieldset className="grid gap-2">
+        <legend className="label">How to import</legend>
+        {(
+          [
+            ["new", "New batch (recommended)", "Kept separate: its own products, stock, sales and profit. Same part numbers as earlier stock are allowed."],
+            ["update", "Update earlier stock", "Rows with an existing part number update that product. New part numbers are added."],
+          ] as const
+        ).map(([v, l, d]) => (
+          <label key={v} className={`flex cursor-pointer items-start gap-2 rounded-[6px] border p-3 text-sm ${mode === v ? "border-accent bg-accent-soft" : "border-line"}`}>
+            <input type="radio" name="mode" value={v} checked={mode === v} onChange={() => setMode(v)} className="mt-0.5" />
+            <span>
+              <span className="font-medium">{l}</span>
+              <span className="block text-xs text-ink-2">{d}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      {mode === "new" && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Batch name">
+            <input className="input" name="batchName" defaultValue={suggestedName} required />
+          </Field>
+          <Field label="Supplier">
+            <input className="input" name="supplier" list="import-suppliers" placeholder="e.g. China supplier (name)" translate="no" />
+            <datalist id="import-suppliers">
+              {suppliers.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </Field>
+        </div>
+      )}
       <input className="input" type="file" name="file" accept=".csv,text/csv" required aria-label="Products CSV file" />
       <SubmitButton pendingText="Importing…">Import products</SubmitButton>
     </form>
   );
 }
 
-export function SalesImportForm() {
+export function SalesImportForm({ batches }: { batches: { value: string; label: string }[] }) {
   const [state, action] = useActionState(importSalesAction, null);
   return (
     <form action={action} className="space-y-3">
       <FormMessage state={state} />
+      <Field label="Batch these sales belong to" hint="Part numbers are matched only inside this batch, so sales never mix with other imports.">
+        <select className="input" name="batch" required defaultValue={batches[0]?.value ?? ""}>
+          {batches.map((b) => (
+            <option key={b.value} value={b.value} translate="no">
+              {b.label}
+            </option>
+          ))}
+        </select>
+      </Field>
       <input className="input" type="file" name="file" accept=".csv,text/csv" required aria-label="Sales CSV file" />
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="affectStock" className="mt-1" />

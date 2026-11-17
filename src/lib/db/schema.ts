@@ -66,6 +66,16 @@ export const categories = pgTable("categories", {
   name: text("name").notNull().unique(),
 });
 
+/** One import / shipment (e.g. "3rd buy · China supplier 2"). Its products, stock and sales are kept separate. */
+export const batches = pgTable("batches", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  supplier: text("supplier"),
+  note: text("note"),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+});
+
 export const products = pgTable(
   "products",
   {
@@ -82,6 +92,8 @@ export const products = pgTable(
     reorderQty: integer("reorder_qty").notNull().default(0),
     leadTimeDays: integer("lead_time_days"),
     supplier: text("supplier"),
+    /** Import batch this product belongs to; null = added before batches / by hand. */
+    batchId: integer("batch_id").references(() => batches.id, { onDelete: "restrict" }),
     /** Cached balance. Only ever changed together with a stock_movements row (see lib/inventory.ts). */
     stockOnHand: integer("stock_on_hand").notNull().default(0),
     active: boolean("active").notNull().default(true),
@@ -89,8 +101,10 @@ export const products = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("products_sku_lower_idx").on(sql`lower(${t.sku})`),
-    uniqueIndex("products_barcode_idx").on(t.barcode),
+    // A part number may exist once per batch.
+    uniqueIndex("products_sku_lower_idx").on(sql`lower(${t.sku})`, sql`coalesce(${t.batchId}, 0)`),
+    uniqueIndex("products_barcode_idx").on(t.barcode, sql`coalesce(${t.batchId}, 0)`),
+    index("products_batch_idx").on(t.batchId),
     index("products_name_idx").on(t.name),
     check("products_stock_non_negative", sql`${t.stockOnHand} >= 0`),
     check("products_prices_non_negative", sql`${t.sellPriceCents} >= 0 and ${t.costPriceCents} >= 0`),
@@ -211,6 +225,8 @@ export const expenses = pgTable(
     category: text("category").notNull(),
     amountCents: integer("amount_cents").notNull(),
     note: text("note"),
+    /** Optional: the import batch this cost belongs to (e.g. freight for one shipment). */
+    batchId: integer("batch_id").references(() => batches.id, { onDelete: "set null" }),
     userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },

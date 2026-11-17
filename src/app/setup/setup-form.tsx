@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PasswordInput } from "@/components/password-input";
 import { setupAction } from "../auth-actions";
 import { Field, FormMessage, SubmitButton, useActionForm } from "@/components/form";
 
@@ -50,10 +51,10 @@ export function SetupForm({ currencies, timeZones }: { currencies: string[]; tim
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Password" hint="At least 8 characters.">
-            <input className="input" name="password" type="password" minLength={8} required autoComplete="new-password" />
+            <PasswordInput className="input" name="password" minLength={8} required autoComplete="new-password" />
           </Field>
           <Field label="Confirm password">
-            <input className="input" name="confirm" type="password" minLength={8} required autoComplete="new-password" />
+            <PasswordInput className="input" name="confirm" minLength={8} required autoComplete="new-password" />
           </Field>
         </div>
       </fieldset>

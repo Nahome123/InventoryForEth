@@ -1,6 +1,7 @@
 "use client";
 
 import { Field, FormMessage, SubmitButton, useActionForm } from "@/components/form";
+import { PasswordInput } from "@/components/password-input";
 import { addOriginAction, addUserAction, saveSettingsAction, updateOriginAction, updateUserAction } from "./actions";
 
 const ROLES = [
@@ -67,7 +68,7 @@ export function AddUserForm() {
           <input className="input" name="username" required autoCapitalize="none" autoComplete="off" />
         </Field>
         <Field label="Temporary password" hint="At least 8 characters.">
-          <input className="input" name="password" type="password" minLength={8} required autoComplete="new-password" />
+          <PasswordInput className="input" name="password" minLength={8} required autoComplete="new-password" />
         </Field>
         <Field label="Role">
           <select className="input" name="role" defaultValue="cashier">
@@ -101,7 +102,7 @@ export function EditUserForm({ user, isMe }: { user: { id: number; fullName: str
         </select>
       </Field>
       <Field label="New password">
-        <input className="input" name="password" type="password" minLength={8} placeholder="unchanged" autoComplete="new-password" />
+        <PasswordInput className="input" name="password" minLength={8} placeholder="unchanged" autoComplete="new-password" />
       </Field>
       <label className="flex min-h-10 items-center gap-2 text-sm">
         <input type="checkbox" name="active" defaultChecked={user.active} disabled={isMe} />

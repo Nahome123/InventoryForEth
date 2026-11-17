@@ -1,7 +1,7 @@
 import Papa from "papaparse";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Executor } from "./db/client";
-import { paymentMethod as paymentEnum, products, type PaymentMethod } from "./db/schema";
+import { batches, paymentMethod as paymentEnum, products, type PaymentMethod } from "./db/schema";
 import { UserError } from "./errors";
 import { parseMoneyToCents } from "./money";
 import { createProductTx, findOrCreateCategory, parseProductInput } from "./products";
@@ -17,7 +17,10 @@ export const SALES_TEMPLATE =
   "2026-09-01 10:15,R1001,NOTEBOOK-A5,1,2.00,cash,\n" +
   "2026-09-02,,PEN-BLUE,10,,mobile_money,School office\n";
 
-export type ImportResult = { created: number; updated: number; sales?: number; lines?: number; errors: string[] };
+export type ImportResult = { created: number; updated: number; sales?: number; lines?: number; batchId?: number; errors: string[] };
+
+/** `batch` set: every row becomes a new product in a new, separate batch. Otherwise rows update/create "earlier stock" products. */
+export type ProductImportOptions = { batch?: { name: string; supplier: string | null } };
 
 const norm = (h: string) => h.trim().toLowerCase().replace(/[\s-]+/g, "_");
 
@@ -36,7 +39,7 @@ const pick = (r: Record<string, string>, ...keys: string[]) => {
 };
 
 /** Creates new products and updates existing ones (matched by SKU). All-or-nothing. */
-export async function importProducts(db: Executor, csv: string, userId: number): Promise<ImportResult> {
+export async function importProducts(db: Executor, csv: string, userId: number, opts: ProductImportOptions = {}): Promise<ImportResult> {
   const rows = parseCsv(csv);
   if (!rows.length) throw new UserError("The file has no data rows.");
   if (rows.length > 5000) throw new UserError("Please import at most 5,000 rows at a time.");
@@ -54,7 +57,7 @@ export async function importProducts(db: Executor, csv: string, userId: number):
       reorderLevel: pick(r, "reorder_level", "min_stock"),
       reorderQty: pick(r, "reorder_qty", "reorder_quantity"),
       leadTimeDays: pick(r, "lead_time_days", "lead_time"),
-      supplier: pick(r, "supplier"),
+      supplier: opts.batch?.supplier || pick(r, "supplier"),
       description: pick(r, "description"),
       openingStock: pick(r, "opening_stock", "stock", "quantity", "qty"),
     };
@@ -74,12 +77,20 @@ export async function importProducts(db: Executor, csv: string, userId: number):
 
   let created = 0;
   let updated = 0;
+  let batchId: number | undefined;
   try {
     await db.transaction(async (tx) => {
-      const existing = await tx
-        .select({ id: products.id, sku: products.sku })
-        .from(products)
-        .where(inArray(sql`lower(${products.sku})`, [...seen]));
+      if (opts.batch) {
+        const [b] = await tx.insert(batches).values({ name: opts.batch.name, supplier: opts.batch.supplier, createdBy: userId }).returning({ id: batches.id });
+        batchId = b.id;
+      }
+      // A new batch never touches existing products; otherwise match "earlier stock" products by SKU.
+      const existing = batchId
+        ? []
+        : await tx
+            .select({ id: products.id, sku: products.sku })
+            .from(products)
+            .where(and(inArray(sql`lower(${products.sku})`, [...seen]), isNull(products.batchId)));
       const bySku = new Map(existing.map((e) => [e.sku.toLowerCase(), e.id]));
       for (const [i, raw] of parsed.entries()) {
         try {
@@ -106,7 +117,7 @@ export async function importProducts(db: Executor, csv: string, userId: number):
               .where(eq(products.id, id));
             updated++;
           } else {
-            await createProductTx(tx, raw, userId);
+            await createProductTx(tx, raw, userId, batchId ?? null);
             created++;
           }
         } catch (e) {
@@ -118,7 +129,7 @@ export async function importProducts(db: Executor, csv: string, userId: number):
     if (e instanceof UserError) return { created: 0, updated: 0, errors: [e.message] };
     throw e;
   }
-  return { created, updated, errors: [] };
+  return { created, updated, batchId, errors: [] };
 }
 
 function tzOffsetMs(at: Date, timeZone: string) {
@@ -155,13 +166,18 @@ export function parseLocalDateTime(input: string, timeZone: string): Date | null
  * Imports historical sales. Rows sharing a receipt number (and date) become one sale.
  * By default historical sales do NOT change current stock (it was counted after they happened).
  */
-export async function importSales(db: Executor, csv: string, opts: { userId: number; timeZone: string; affectStock: boolean }): Promise<ImportResult> {
+export async function importSales(db: Executor, csv: string, opts: { userId: number; timeZone: string; affectStock: boolean; /** Match SKUs in this batch; null/omitted = earlier stock. */ batchId?: number | null }): Promise<ImportResult> {
   const rows = parseCsv(csv);
   if (!rows.length) throw new UserError("The file has no data rows.");
   if (rows.length > 20000) throw new UserError("Please import at most 20,000 rows at a time.");
   const errors: string[] = [];
   const skus = [...new Set(rows.map((r) => pick(r, "sku", "code", "product_code").toLowerCase()).filter(Boolean))];
-  const prods = skus.length ? await db.select().from(products).where(inArray(sql`lower(${products.sku})`, skus)) : [];
+  const prods = skus.length
+    ? await db
+        .select()
+        .from(products)
+        .where(and(inArray(sql`lower(${products.sku})`, skus), opts.batchId == null ? isNull(products.batchId) : eq(products.batchId, opts.batchId)))
+    : [];
   const bySku = new Map(prods.map((p) => [p.sku.toLowerCase(), p]));
   const now = Date.now();
 
@@ -180,7 +196,7 @@ export async function importSales(db: Executor, csv: string, opts: { userId: num
     if (dateStr && !soldAt) problems.push(`date "${dateStr}" must look like 2026-09-01 or 2026-09-01 14:30 (or leave it blank if unknown)`);
     else if (soldAt && soldAt.getTime() > now + 60_000) problems.push("date is in the future");
     if (!sku) problems.push("SKU is missing");
-    else if (!p) problems.push(`no product with SKU "${sku}" (import products first)`);
+    else if (!p) problems.push(`no product with SKU "${sku}" in the chosen batch (import its products first, or pick another batch)`);
     if (!Number.isInteger(qty) || qty <= 0) problems.push("quantity must be a whole number of at least 1");
     const price = priceStr === "" ? (p?.sellPriceCents ?? 0) : parseMoneyToCents(priceStr);
     if (price === null || price < 0) problems.push(`unit price "${priceStr}" is not a valid amount`);

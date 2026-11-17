@@ -8,16 +8,21 @@ import { formatPlainDate, todayInZone } from "@/lib/format";
 import { EXPENSE_CATEGORIES, getProfitSummary, listExpenses, parsePeriod, periodRange, PERIODS } from "@/lib/profit";
 import { Alert, Empty, PageHeader, StatTile, TableWrap } from "@/components/ui";
 import { AddExpenseForm, DeleteExpenseButton } from "./forms";
+import { batchLabel, batchOptions, parseBatch } from "@/lib/batches";
+import { BatchFilter } from "@/components/batch-filter";
 
 export const metadata = { title: "Profit" };
 
-export default async function ProfitPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
+export default async function ProfitPage({ searchParams }: { searchParams: Promise<{ period?: string; batch?: string }> }) {
   await requireUser("viewCosts");
-  const period = parsePeriod((await searchParams).period, "all");
+  const sp = await searchParams;
+  const period = parsePeriod(sp.period, "all");
+  const batch = parseBatch(sp.batch);
   const db = await getDb();
   const s = await getSettings(db);
   const range = periodRange(period, s.timezone);
-  const [p, exps] = await Promise.all([getProfitSummary(db, s.timezone, range), listExpenses(db, range)]);
+  const [p, exps, { list: batchList, options: batchOpts }] = await Promise.all([getProfitSummary(db, s.timezone, range, batch), listExpenses(db, range, batch), batchOptions(db)]);
+  const batchName = new Map(batchList.map((b) => [b.id, batchLabel(b)]));
   const money = (c: number) => formatMoney(c, s.currency);
   const pct = (v: number | null) => (v === null ? "" : `${v}%`);
   const label = PERIODS.find((x) => x.key === period)!.label;
@@ -30,11 +35,12 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
         subtitle={range.from ? `${formatPlainDate(range.from)} – ${formatPlainDate(range.to!)}` : "Everything recorded so far, including sales without a date."}
       />
 
+      <BatchFilter options={batchOpts} value={sp.batch} />
       <nav className="mb-4 flex gap-1 overflow-x-auto rounded-lg bg-surface-2 p-1" aria-label="Period">
         {PERIODS.map((x) => (
           <Link
             key={x.key}
-            href={`/profit?period=${x.key}`}
+            href={`/profit?period=${x.key}${sp.batch ? `&batch=${encodeURIComponent(sp.batch)}` : ""}`}
             aria-current={x.key === period ? "page" : undefined}
             className={clsx("whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium", x.key === period ? "bg-surface shadow-sm" : "text-ink-2")}
           >
@@ -113,7 +119,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
       <div className="mt-5 grid gap-5 lg:grid-cols-[340px_1fr]">
         <section className="card h-fit p-5 sm:p-6">
           <h2 className="mb-3 text-lg font-semibold">Add an expense</h2>
-          <AddExpenseForm today={todayInZone(s.timezone)} categories={EXPENSE_CATEGORIES} />
+          <AddExpenseForm today={todayInZone(s.timezone)} categories={EXPENSE_CATEGORIES} batches={batchList.map((b) => ({ id: b.id, label: batchLabel(b) }))} defaultBatch={typeof batch === "number" ? batch : null} />
         </section>
 
         <section className="min-w-0">
@@ -147,6 +153,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
                       <td className="whitespace-nowrap text-ink-2">{formatPlainDate(e.spentOn)}</td>
                       <td>
                         <div className="font-medium">{e.category}</div>
+                        {e.batchId && <div className="text-xs text-ink-3" translate="no">{batchName.get(e.batchId)}</div>}
                         {e.note && <div className="text-xs text-ink-3 sm:hidden">{e.note}</div>}
                       </td>
                       <td className="hidden text-ink-2 sm:table-cell">

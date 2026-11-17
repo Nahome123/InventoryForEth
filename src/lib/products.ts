@@ -91,26 +91,28 @@ export async function findOrCreateCategory(tx: Executor, name: string | null): P
   return again?.id ?? null;
 }
 
-async function assertUnique(tx: Executor, sku: string, barcode: string | null, exceptId?: number) {
+/** SKU and barcode must be unique within a batch (the same part can exist in different import batches). */
+async function assertUnique(tx: Executor, sku: string, barcode: string | null, exceptId?: number, batchId: number | null = null) {
+  const sameBatch = sql`coalesce(${products.batchId}, 0) = ${batchId ?? 0}`;
   const skuClash = await tx
     .select({ id: products.id, name: products.name })
     .from(products)
-    .where(and(sql`lower(${products.sku}) = lower(${sku})`, exceptId ? ne(products.id, exceptId) : undefined));
+    .where(and(sql`lower(${products.sku}) = lower(${sku})`, sameBatch, exceptId ? ne(products.id, exceptId) : undefined));
   if (skuClash.length) throw new UserError(`SKU "${sku}" is already used by "${skuClash[0].name}".`);
   if (barcode) {
     const bcClash = await tx
       .select({ id: products.id, name: products.name })
       .from(products)
-      .where(and(eq(products.barcode, barcode), exceptId ? ne(products.id, exceptId) : undefined));
+      .where(and(eq(products.barcode, barcode), sameBatch, exceptId ? ne(products.id, exceptId) : undefined));
     if (bcClash.length) throw new UserError(`Barcode "${barcode}" is already used by "${bcClash[0].name}".`);
   }
 }
 
-export async function createProductTx(tx: Tx, raw: ProductInput & { openingStock?: number | string | null }, userId: number | null) {
+export async function createProductTx(tx: Tx, raw: ProductInput & { openingStock?: number | string | null }, userId: number | null, batchId: number | null = null) {
   const data = parseProductInput(raw);
   const opening = raw.openingStock === undefined || raw.openingStock === null || String(raw.openingStock).trim() === "" ? 0 : Number(raw.openingStock);
   if (!Number.isInteger(opening) || opening < 0) throw new UserError("Opening stock must be a whole number of 0 or more.");
-  await assertUnique(tx, data.sku, data.barcode);
+  await assertUnique(tx, data.sku, data.barcode, undefined, batchId);
   const categoryId = await findOrCreateCategory(tx, data.category);
   const [p] = await tx
     .insert(products)
@@ -127,6 +129,7 @@ export async function createProductTx(tx: Tx, raw: ProductInput & { openingStock
       reorderQty: data.reorderQty ?? 0,
       leadTimeDays: data.leadTimeDays,
       supplier: data.supplier,
+      batchId,
     })
     .returning();
   if (opening > 0) await applyMovement(tx, { productId: p.id, type: "opening", quantity: opening, userId, note: "Opening stock" });
@@ -141,7 +144,9 @@ export async function createProduct(db: Executor, raw: ProductInput & { openingS
 export async function updateProduct(db: Executor, id: number, raw: ProductInput) {
   const data = parseProductInput(raw);
   return db.transaction(async (tx) => {
-    await assertUnique(tx, data.sku, data.barcode, id);
+    const [cur] = await tx.select({ batchId: products.batchId }).from(products).where(eq(products.id, id));
+    if (!cur) throw new UserError("Product not found.");
+    await assertUnique(tx, data.sku, data.barcode, id, cur.batchId);
     const categoryId = await findOrCreateCategory(tx, data.category);
     const [p] = await tx
       .update(products)

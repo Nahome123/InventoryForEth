@@ -7,6 +7,7 @@ import { getDb } from "@/lib/db";
 import { expenses } from "@/lib/db/schema";
 import { errorMessage, UserError } from "@/lib/errors";
 import { parseMoneyToCents } from "@/lib/money";
+import { toId } from "@/lib/ids";
 import type { ActionState } from "@/components/form";
 
 export async function addExpenseAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -19,7 +20,7 @@ export async function addExpenseAction(_: ActionState, fd: FormData): Promise<Ac
     if (!category) throw new UserError("Choose or type a category.");
     if (category.length > 60) throw new UserError("Category is too long.");
     if (amount === null || amount <= 0) throw new UserError("Amount must be more than 0.");
-    await (await getDb()).insert(expenses).values({ spentOn, category, amountCents: amount, note: String(fd.get("note") ?? "").trim() || null, userId: user.id });
+    await (await getDb()).insert(expenses).values({ spentOn, category, amountCents: amount, note: String(fd.get("note") ?? "").trim() || null, batchId: toId(fd.get("batch")), userId: user.id });
     revalidatePath("/profit");
     revalidatePath("/");
     return { ok: "Expense added." };

@@ -13,10 +13,12 @@ import { Badge, Empty, MobileCard, MobileList, PageHeader, StockBadge, TableWrap
 import { Filters } from "@/components/filters";
 import { SuggestInput, type Suggestion } from "@/components/suggest-input";
 import { SupplierLabeler } from "./supplier-label";
+import { batchLabel, batchOptions, parseBatch } from "@/lib/batches";
+import { BatchFilter } from "@/components/batch-filter";
 
 export const metadata = { title: "Products" };
 
-type SP = { q?: string; category?: string; show?: string; stock?: string; supplier?: string };
+type SP = { q?: string; category?: string; show?: string; stock?: string; supplier?: string; batch?: string };
 const NO_SUPPLIER = "__none";
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -24,12 +26,16 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const db = await getDb();
   const show = sp.show ?? "active";
-  const [levels, cats, s, origins] = await Promise.all([
+  const batch = parseBatch(sp.batch);
+  const [allLevels, cats, s, origins, { list: batchList, options: batchOpts }] = await Promise.all([
     getStockLevels(db, { includeInactive: show !== "active" }),
     db.select().from(categories).orderBy(asc(categories.name)),
     getSettings(db),
     listOrigins(db),
+    batchOptions(db),
   ]);
+  const levels = batch === undefined ? allLevels : allLevels.filter((l) => l.batchId === batch);
+  const batchName = new Map(batchList.map((b) => [b.id, batchLabel(b)]));
   const catName = new Map(cats.map((c) => [c.id, c.name]));
   const q = (sp.q ?? "").trim().toLowerCase();
 
@@ -81,6 +87,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                 <>
                   <span className="font-mono">{p.sku}</span>
                   {p.supplier ? ` · ${p.supplier}` : ""}
+                  {p.batchId ? ` · ${batchName.get(p.batchId)}` : ""}
                   {p.categoryId ? ` · ${catName.get(p.categoryId)}` : ""}
                 </>
               }
@@ -114,7 +121,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                       <Link href={`/products/${p.id}`} className="font-medium hover:underline">
                         {p.name}
                       </Link>
-                      <div className="font-mono text-xs text-ink-3">{p.sku}</div>
+                      <div className="font-mono text-xs text-ink-3">
+                        {p.sku}
+                        {p.batchId && <span className="ml-1.5 rounded bg-surface-2 px-1.5 py-0.5 font-sans text-[11px] text-ink-2" translate="no">{batchName.get(p.batchId)}</span>}
+                      </div>
                     </td>
                     <td className="hidden md:table-cell" translate="no">
                       {p.supplier ? <Badge>{p.supplier}</Badge> : <span className="text-ink-3">—</span>}
@@ -151,9 +161,11 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           )
         }
       />
+      <BatchFilter options={batchOpts} value={sp.batch} />
       <Filters active={[sp.category, sp.stock, show !== "active" ? show : ""].filter(Boolean).length}>
         <form className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto_auto]" role="search">
           {sp.supplier && <input type="hidden" name="supplier" value={sp.supplier} />}
+          {sp.batch && <input type="hidden" name="batch" value={sp.batch} />}
           <SuggestInput name="q" defaultValue={sp.q} placeholder="Search name, part no., barcode or supplier" ariaLabel="Search products" suggestions={suggestions} />
           <select className="input filter-extra" name="category" defaultValue={sp.category ?? ""} aria-label="Category">
             <option value="">All categories</option>

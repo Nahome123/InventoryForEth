@@ -91,6 +91,7 @@ export function SalesList({
                           {l.name}
                           <span className="font-mono text-ink-3">{` · ${l.sku}`}</span>
                           {l.origin && <span className="text-ink-3">{` · ${l.origin}`}</span>}
+                          {l.batch && <span className="text-ink-3">{` · ${l.batch}`}</span>}
                         </span>
                         <span className="shrink-0 tabular-nums">
                           {money(l.soldCents)} × {l.qty}
@@ -138,6 +139,7 @@ export function SalesList({
                               <div key={i} className="truncate leading-6">
                                 {l.name}
                                 {l.origin && <span className="ml-1.5 rounded bg-accent-soft px-1.5 py-0.5 text-[11px] font-normal text-accent-fg">{l.origin}</span>}
+                                {l.batch && <span className="ml-1.5 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-normal text-ink-2">{l.batch}</span>}
                               </div>
                             ))
                           : "—"}

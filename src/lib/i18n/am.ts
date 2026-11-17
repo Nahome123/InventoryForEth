@@ -495,6 +495,24 @@ export const AM: Record<string, string> = {
   "Imported sale: changing quantities won't change stock.": "ከውጭ የገባ ሽያጭ፦ ብዛት መቀየር ክምችትን አይቀይርም።",
   "Changing a quantity also moves stock by the difference.": "ብዛት መቀየር ክምችቱንም በልዩነቱ ያንቀሳቅሳል።",
   "Voided sales can't be edited.": "የተሰረዙ ሽያጮች ሊስተካከሉ አይችሉም።",
+  "Show password": "የይለፍ ቃሉን አሳይ",
+  "Hide password": "የይለፍ ቃሉን ደብቅ",
+  "Batch": "ባች",
+  "All batches": "ሁሉም ባቾች",
+  "Earlier stock": "የቀድሞ ክምችት",
+  "How to import": "እንዴት እንደሚገባ",
+  "New batch (recommended)": "አዲስ ባች (የሚመከር)",
+  "Kept separate: its own products, stock, sales and profit. Same part numbers as earlier stock are allowed.": "ተለይቶ ይቀመጣል፦ የራሱ ምርቶች፣ ክምችት፣ ሽያጭ እና ትርፍ። ከቀድሞ ክምችት ጋር ተመሳሳይ የክፍል ቁጥሮች ይፈቀዳሉ።",
+  "Update earlier stock": "የቀድሞ ክምችትን አዘምን",
+  "Rows with an existing part number update that product. New part numbers are added.": "ያለ የክፍል ቁጥር ያላቸው ረድፎች ያንን ምርት ያዘምናሉ። አዲስ የክፍል ቁጥሮች ይጨመራሉ።",
+  "Batch name": "የባች ስም",
+  "Batch these sales belong to": "እነዚህ ሽያጮች የሚገቡበት ባች",
+  "Part numbers are matched only inside this batch, so sales never mix with other imports.": "የክፍል ቁጥሮች የሚዛመዱት በዚህ ባች ውስጥ ብቻ ነው፣ ስለዚህ ሽያጮች ከሌሎች ጋር አይቀላቀሉም።",
+  "Batch (optional)": "ባች (አማራጭ)",
+  "Tie a cost like freight or customs to one shipment.": "እንደ ጭነት ወይም ጉምሩክ ያለ ወጪን ከአንድ ጭነት ጋር ያያይዙ።",
+  "Not tied to a batch": "ከባች ጋር ያልተያያዘ",
+  "Choose which batch these sales belong to.": "እነዚህ ሽያጮች የትኛው ባች እንደሆኑ ይምረጡ።",
+  "Give this batch a name, e.g. “3rd buy”.": "ለዚህ ባች ስም ይስጡ፣ ለምሳሌ “3ኛ ግዢ”።",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
@@ -549,6 +567,8 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^New batch “(.+)” created with (\d+) products?\. Pick it in the Batch filter to see its own numbers\.$/, (m) => `አዲስ ባች “${m[1]}” በ${m[2]} ምርቶች ተፈጥሯል። የራሱን ቁጥሮች ለማየት በባች ማጣሪያው ይምረጡት።`],
+  [/^Earlier stock \((\d+)\)$/, (m) => `የቀድሞ ክምችት (${m[1]})`],
   [/^Edit sale (S-\d+)$/, (m) => `ሽያጭ ${m[1]} አስተካክል`],
   [/^After (.+) discount$/, (m) => `${m[1]} ቅናሽ ከተቀነሰ በኋላ`],
   [/^(\d+) products? · (-?\d+) total · (-?\d+) in stock · (\d+) sold$/, (m) => `${m[1]} ምርቶች · ${m[2]} ጠቅላላ · ${m[3]} በክምችት · ${m[4]} የተሸጡ`],

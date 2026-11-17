@@ -13,6 +13,8 @@ import { PageHeader, Pagination, StatTile } from "@/components/ui";
 import { FilterPanel } from "@/components/filter-panel";
 import { SuggestInput, type Suggestion } from "@/components/suggest-input";
 import { SalesList } from "./sales-list";
+import { batchOptions } from "@/lib/batches";
+import { BatchFilter } from "@/components/batch-filter";
 
 export const metadata = { title: "Sales history" };
 const PAGE = 50;
@@ -25,12 +27,13 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   const page = Math.min(10_000, Math.max(1, Number(sp.page) || 1));
   // Voided sales live on their own page (/sales/voided), so history shows completed sales only.
   const filter: SalesFilter = { ...sp, status: "completed" };
-  const [{ rows, count, revenue, units, productsSold, totalProducts }, prods, staff, origins, customers] = await Promise.all([
+  const [{ rows, count, revenue, units, productsSold, totalProducts }, prods, staff, origins, customers, { options: batchOpts }] = await Promise.all([
     listSales(db, filter, s.timezone, PAGE, (page - 1) * PAGE),
     db.select({ id: products.id, name: products.name, sku: products.sku }).from(products).orderBy(asc(products.name)),
     db.select({ id: users.id, name: users.fullName }).from(users).orderBy(asc(users.fullName)),
     listOrigins(db),
     db.selectDistinct({ name: sales.customerName }).from(sales).where(isNotNull(sales.customerName)).limit(500),
+    batchOptions(db),
   ]);
   const filters = Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && k !== "page")) as Record<string, string>;
   const qs = (p: number) => "?" + new URLSearchParams({ ...filters, page: String(p) }).toString();
@@ -61,7 +64,8 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
           </>
         }
       />
-      <FilterPanel active={Object.keys(filters).length}>
+      <BatchFilter options={batchOpts} value={sp.batch} />
+      <FilterPanel active={Object.keys(filters).filter((k) => k !== "batch").length}>
         <form className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <SuggestInput name="q" defaultValue={sp.q} placeholder="Product, part no., customer or sale #" ariaLabel="Search sales" suggestions={suggestions} />
           <div className="grid grid-cols-2 gap-2">
@@ -107,6 +111,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
               </option>
             ))}
           </select>
+          {sp.batch && <input type="hidden" name="batch" value={sp.batch} />}
           <div className="flex gap-2">
             <button className="btn-primary flex-1">Search</button>
             <Link className="btn-secondary" href="/sales">

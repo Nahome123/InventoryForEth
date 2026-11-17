@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import type { Executor } from "./db/client";
-import { expenses, saleItems, saleOrigins, sales, users } from "./db/schema";
+import { expenses, products, saleItems, saleOrigins, sales, users } from "./db/schema";
+import { productBatchWhere } from "./batches";
 import { addDays } from "./analytics";
 import { todayInZone } from "./format";
 
@@ -49,25 +50,38 @@ export type ProfitSummary = {
   byExpenseCategory: { category: string; amount: number }[];
 };
 
-export async function getProfitSummary(db: Executor, tz: string, range: { from: string | null; to: string | null }): Promise<ProfitSummary> {
+export async function getProfitSummary(db: Executor, tz: string, range: { from: string | null; to: string | null }, batch?: number | null): Promise<ProfitSummary> {
   const local = sql`(${sales.soldAt} at time zone ${tz})::date`;
   const saleWhere: SQL | undefined = and(
     eq(sales.status, "completed"),
     range.from ? sql`${local} >= ${range.from}::date` : undefined,
     range.to ? sql`${local} <= ${range.to}::date` : undefined,
   );
-  const expWhere = and(range.from ? sql`${expenses.spentOn} >= ${range.from}::date` : undefined, range.to ? sql`${expenses.spentOn} <= ${range.to}::date` : undefined);
+  const scoped = batch !== undefined;
+  const lineInBatch = scoped ? sql`${saleItems.productId} in (select ${products.id} from ${products} where ${productBatchWhere(batch)})` : undefined;
+  const lineWhere = and(saleWhere, lineInBatch);
+  const expBatch = !scoped ? undefined : batch === null ? sql`${expenses.batchId} is null` : eq(expenses.batchId, batch);
+  const expWhere = and(expBatch, range.from ? sql`${expenses.spentOn} >= ${range.from}::date` : undefined, range.to ? sql`${expenses.spentOn} <= ${range.to}::date` : undefined);
 
   const [[totals], [costRow], origins, [undated], [expTotal], expCats] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)::int`, revenue: sql<number>`coalesce(sum(${sales.totalCents}),0)::bigint` })
-      .from(sales)
-      .where(saleWhere),
+    scoped
+      ? db
+          .select({
+            count: sql<number>`count(distinct ${sales.id})::int`,
+            revenue: sql<number>`round(coalesce(sum(${saleItems.lineTotalCents}::numeric * ${sales.totalCents} / nullif(${sales.subtotalCents},0)),0))::bigint`,
+          })
+          .from(saleItems)
+          .innerJoin(sales, eq(sales.id, saleItems.saleId))
+          .where(lineWhere)
+      : db
+          .select({ count: sql<number>`count(*)::int`, revenue: sql<number>`coalesce(sum(${sales.totalCents}),0)::bigint` })
+          .from(sales)
+          .where(saleWhere),
     db
       .select({ cost: sql<number>`coalesce(sum(${saleItems.unitCostCents}::bigint * ${saleItems.quantity}),0)::bigint` })
       .from(saleItems)
       .innerJoin(sales, eq(sales.id, saleItems.saleId))
-      .where(saleWhere),
+      .where(lineWhere),
     db
       .select({
         originId: saleItems.originId,
@@ -80,13 +94,14 @@ export async function getProfitSummary(db: Executor, tz: string, range: { from: 
       .from(saleItems)
       .innerJoin(sales, eq(sales.id, saleItems.saleId))
       .leftJoin(saleOrigins, eq(saleOrigins.id, saleItems.originId))
-      .where(saleWhere)
+      .where(lineWhere)
       .groupBy(saleItems.originId, saleOrigins.name),
     range.from || range.to
       ? db
           .select({ n: sql<number>`count(*)::int` })
           .from(sales)
-          .where(and(eq(sales.status, "completed"), sql`${sales.soldAt} is null`))
+          .leftJoin(users, eq(users.id, sales.userId))
+          .where(and(eq(sales.status, "completed"), sql`${sales.soldAt} is null`, scoped ? sql`exists (select 1 from ${saleItems} where ${saleItems.saleId} = "sales"."id" and ${lineInBatch})` : undefined))
       : Promise.resolve([{ n: 0 }]),
     db.select({ amount: sql<number>`coalesce(sum(${expenses.amountCents}),0)::bigint` }).from(expenses).where(expWhere),
     db
@@ -126,12 +141,18 @@ export async function getProfitSummary(db: Executor, tz: string, range: { from: 
   };
 }
 
-export function listExpenses(db: Executor, range: { from: string | null; to: string | null }, limit = 200) {
+export function listExpenses(db: Executor, range: { from: string | null; to: string | null }, batch?: number | null, limit = 200) {
   return db
     .select({ expense: expenses, by: users.fullName })
     .from(expenses)
     .leftJoin(users, eq(users.id, expenses.userId))
-    .where(and(range.from ? sql`${expenses.spentOn} >= ${range.from}::date` : undefined, range.to ? sql`${expenses.spentOn} <= ${range.to}::date` : undefined))
+    .where(
+      and(
+        batch === undefined ? undefined : batch === null ? sql`${expenses.batchId} is null` : eq(expenses.batchId, batch),
+        range.from ? sql`${expenses.spentOn} >= ${range.from}::date` : undefined,
+        range.to ? sql`${expenses.spentOn} <= ${range.to}::date` : undefined,
+      ),
+    )
     .orderBy(desc(expenses.spentOn), desc(expenses.id))
     .limit(limit);
 }

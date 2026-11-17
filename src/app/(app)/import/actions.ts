@@ -6,6 +6,8 @@ import { getDb } from "@/lib/db";
 import { errorMessage, UserError } from "@/lib/errors";
 import { importProducts, importSales } from "@/lib/import";
 import { getSettings } from "@/lib/analytics";
+import { EARLIER } from "@/lib/batches";
+import { toId } from "@/lib/ids";
 import type { ActionState } from "@/components/form";
 
 async function readCsv(fd: FormData) {
@@ -19,10 +21,20 @@ async function readCsv(fd: FormData) {
 export async function importProductsAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const user = await requireActionUser("importExport");
-    const r = await importProducts(await getDb(), await readCsv(fd), user.id);
+    const separate = fd.get("mode") !== "update";
+    const supplier = String(fd.get("supplier") ?? "").trim().replace(/\s+/g, " ") || null;
+    const name = String(fd.get("batchName") ?? "").trim().replace(/\s+/g, " ");
+    if (separate && !name) throw new UserError("Give this batch a name, e.g. “3rd buy”.");
+    if (name.length > 80 || (supplier?.length ?? 0) > 120) throw new UserError("Batch or supplier name is too long.");
+    const r = await importProducts(await getDb(), await readCsv(fd), user.id, separate ? { batch: { name, supplier } } : {});
     if (r.errors.length) return { error: "Nothing was imported. Fix these rows and try again:", errors: r.errors };
     revalidatePath("/products");
-    return { ok: `Imported: ${r.created} new product${r.created === 1 ? "" : "s"}, ${r.updated} updated.` };
+    revalidatePath("/inventory");
+    return {
+      ok: separate
+        ? `New batch “${name}” created with ${r.created} product${r.created === 1 ? "" : "s"}. Pick it in the Batch filter to see its own numbers.`
+        : `Imported: ${r.created} new product${r.created === 1 ? "" : "s"}, ${r.updated} updated.`,
+    };
   } catch (e) {
     return { error: errorMessage(e) };
   }
@@ -33,7 +45,10 @@ export async function importSalesAction(_: ActionState, fd: FormData): Promise<A
     const user = await requireActionUser("importExport");
     const db = await getDb();
     const s = await getSettings(db);
-    const r = await importSales(db, await readCsv(fd), { userId: user.id, timeZone: s.timezone, affectStock: fd.get("affectStock") === "on" });
+    const b = String(fd.get("batch") ?? "");
+    const batchId = b === EARLIER ? null : toId(b);
+    if (b !== EARLIER && !batchId) throw new UserError("Choose which batch these sales belong to.");
+    const r = await importSales(db, await readCsv(fd), { userId: user.id, timeZone: s.timezone, affectStock: fd.get("affectStock") === "on", batchId });
     if (r.errors.length) return { error: "Nothing was imported. Fix these rows and try again:", errors: r.errors };
     revalidatePath("/sales");
     return { ok: `Imported ${r.sales} sale${r.sales === 1 ? "" : "s"} from ${r.lines} rows.` };

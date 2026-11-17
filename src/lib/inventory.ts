@@ -117,6 +117,7 @@ export type StockLevel = {
   reorderQty: number;
   leadTimeDays: number | null;
   supplier: string | null;
+  batchId: number | null;
   active: boolean;
   onHand: number;
   committed: number;
@@ -147,6 +148,7 @@ export async function getStockLevels(db: Executor, opts: { includeInactive?: boo
       reorderQty: p.reorderQty,
       leadTimeDays: p.leadTimeDays,
       supplier: p.supplier,
+      batchId: p.batchId,
       active: p.active,
       onHand: p.stockOnHand,
       committed: c,

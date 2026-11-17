@@ -23,7 +23,8 @@ type Group = { key: string; name: string; items: Item[]; onHand: number; sold: n
  * Inventory grouped by supplier: one card per supplier. Opening a card lists its products with
  * quantity in stock and quantity sold. The last card starts a delivery from a new supplier.
  */
-export function SupplierGroups({ products, selected, canReceive, money }: { products: Item[]; selected?: string; canReceive: boolean; money: ((c: number) => string) | null }) {
+export function SupplierGroups({ products, selected, canReceive, money, base = "" }: { products: Item[]; selected?: string; canReceive: boolean; money: ((c: number) => string) | null; /** Extra query (e.g. the batch filter) kept on links. */ base?: string }) {
+  const home = base ? `/inventory?${base}` : "/inventory";
   const map = new Map<string, Group>();
   for (const p of products) {
     const key = p.supplier ?? NO_SUPPLIER;
@@ -55,7 +56,7 @@ export function SupplierGroups({ products, selected, canReceive, money }: { prod
           return (
             <Link
               key={g.key}
-              href={isOpen ? "/inventory" : `/inventory?group=${encodeURIComponent(g.key)}#supplier-panel`}
+              href={isOpen ? home : `/inventory?${base ? `${base}&` : ""}group=${encodeURIComponent(g.key)}#supplier-panel`}
               scroll={false}
               aria-expanded={isOpen}
               className={clsx("card block p-4 transition hover:-translate-y-0.5 sm:p-5", isOpen ? "ring-2 ring-accent" : "hover:ring-2 hover:ring-accent/25")}
@@ -111,7 +112,7 @@ export function SupplierGroups({ products, selected, canReceive, money }: { prod
                   <PackagePlus size={16} aria-hidden /> Add stock
                 </Link>
               )}
-              <Link href="/inventory" scroll={false} className="btn-secondary">
+              <Link href={home} scroll={false} className="btn-secondary">
                 Close
               </Link>
             </div>

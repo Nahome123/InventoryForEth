@@ -1,4 +1,8 @@
 import { requireUser } from "@/lib/auth";
+import { getDb } from "@/lib/db";
+import { batchOptions, EARLIER, EARLIER_LABEL } from "@/lib/batches";
+import { getStockLevels } from "@/lib/inventory";
+import { listOrigins } from "@/lib/profit";
 import { PageHeader } from "@/components/ui";
 import { ProductImportForm, SalesImportForm } from "./import-forms";
 
@@ -6,6 +10,13 @@ export const metadata = { title: "Import / export" };
 
 export default async function ImportPage() {
   await requireUser("importExport");
+  const db = await getDb();
+  const [{ list, options }, levels, origins] = await Promise.all([batchOptions(db), getStockLevels(db, { includeInactive: true }), listOrigins(db)]);
+  const suppliers = [...new Set([...levels.map((l) => l.supplier).filter((x): x is string => !!x), ...origins.map((o) => o.name)])].sort((a, b) => a.localeCompare(b));
+  const n = list.length + 1;
+  const ord = n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th";
+  // Batches newest first; "Earlier stock" is always offered for products imported before batches existed.
+  const saleBatches = options.some((o) => o.value === EARLIER) ? options : [...options, { value: EARLIER, label: EARLIER_LABEL }];
   return (
     <div className="max-w-4xl">
       <PageHeader title="Import / export" subtitle="Bring in records from Excel or another system, or download your data. Save Excel sheets as CSV first (File → Save As → CSV UTF-8)." />
@@ -14,12 +25,12 @@ export default async function ImportPage() {
           <h2 className="text-lg font-semibold">1. Import products</h2>
           <p className="text-sm text-ink-2">
             Required columns: <code>name</code>, <code>sku</code>, <code>sell_price</code>. Optional: barcode, category, unit, cost_price, opening_stock, reorder_level, reorder_qty, lead_time_days, supplier.
-            Rows with an SKU that already exists update that product (stock isn&apos;t changed).
+            Each import can be its own <strong>batch</strong> (one shipment from one supplier), kept separate from earlier stock.
           </p>
           <a className="text-sm text-accent-fg underline" href="/api/export/template-products">
             Download products template
           </a>
-          <ProductImportForm />
+          <ProductImportForm suppliers={suppliers} suggestedName={`${n}${ord} buy`} />
         </section>
         <section className="card space-y-3 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">2. Import past sales</h2>
@@ -30,7 +41,7 @@ export default async function ImportPage() {
           <a className="text-sm text-accent-fg underline" href="/api/export/template-sales">
             Download sales template
           </a>
-          <SalesImportForm />
+          <SalesImportForm batches={saleBatches} />
         </section>
       </div>
       <p className="mt-3 text-xs text-ink-3">Imports are all-or-nothing: if any row has a problem, nothing is saved and you&apos;ll see the row numbers to fix.</p>

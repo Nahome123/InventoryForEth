@@ -5,7 +5,7 @@ import { Trash2 } from "lucide-react";
 import { Field, FormMessage, SubmitButton, useActionForm } from "@/components/form";
 import { addExpenseAction, deleteExpenseAction } from "./actions";
 
-export function AddExpenseForm({ today, categories }: { today: string; categories: string[] }) {
+export function AddExpenseForm({ today, categories, batches, defaultBatch }: { today: string; categories: string[]; batches: { id: number; label: string }[]; defaultBatch: number | null }) {
   const { state, onSubmit, pending } = useActionForm(addExpenseAction, null);
   // Clear the form after each successful add.
   const [n, setN] = useState(0);
@@ -31,6 +31,18 @@ export function AddExpenseForm({ today, categories }: { today: string; categorie
           ))}
         </datalist>
       </Field>
+      {batches.length > 0 && (
+        <Field label="Batch (optional)" hint="Tie a cost like freight or customs to one shipment.">
+          <select className="input" name="batch" defaultValue={defaultBatch ?? ""}>
+            <option value="">Not tied to a batch</option>
+            {batches.map((b) => (
+              <option key={b.id} value={b.id} translate="no">
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       <Field label="Note (optional)">
         <input className="input" name="note" />
       </Field>
