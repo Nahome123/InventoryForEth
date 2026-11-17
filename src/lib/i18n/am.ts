@@ -485,6 +485,7 @@ export const AM: Record<string, string> = {
   "e.g. invoice 4471": "ለምሳሌ ደረሰኝ 4471",
   "Stock status": "የክምችት ሁኔታ",
   "← Inventory": "← ክምችት",
+  "Total qty": "ጠቅላላ ብዛት",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
@@ -539,6 +540,7 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^(\d+) products? · (-?\d+) total · (-?\d+) in stock · (\d+) sold$/, (m) => `${m[1]} ምርቶች · ${m[2]} ጠቅላላ · ${m[3]} በክምችት · ${m[4]} የተሸጡ`],
   [/^(\d+) products? · (-?\d+) in stock · (\d+) sold$/, (m) => `${m[1]} ምርቶች · ${m[2]} በክምችት · ${m[3]} የተሸጡ`],
   [/^(\d+) products?$/, (m) => `${m[1]} ምርቶች`],
   [/^Save delivery \((\d+) units\)$/, (m) => `ገቢውን አስቀምጥ (${m[1]} ቁራጭ)`],

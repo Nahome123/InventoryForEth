@@ -103,7 +103,7 @@ export function SupplierGroups({ products, selected, canReceive, money }: { prod
               <h3 className="truncate font-display text-lg font-semibold" translate={open.key === NO_SUPPLIER ? undefined : "no"}>
                 {open.name}
               </h3>
-              <p className="text-xs text-ink-3">{`${open.items.length} products · ${open.onHand} in stock · ${open.sold} sold`}</p>
+              <p className="text-xs text-ink-3">{`${open.items.length} products · ${open.onHand + open.sold} total · ${open.onHand} in stock · ${open.sold} sold`}</p>
             </div>
             <div className="flex gap-2">
               {canReceive && open.key !== NO_SUPPLIER && (
@@ -125,6 +125,7 @@ export function SupplierGroups({ products, selected, canReceive, money }: { prod
                   <tr>
                     <th>Product</th>
                     <th className="hidden sm:table-cell">Part no.</th>
+                    <th className="num">Total qty</th>
                     <th className="num">In stock</th>
                     <th className="num">Sold</th>
                     <th className="num hidden sm:table-cell">Available</th>
@@ -143,6 +144,7 @@ export function SupplierGroups({ products, selected, canReceive, money }: { prod
                       <td className="hidden font-mono text-xs text-ink-2 sm:table-cell" translate="no">
                         {i.sku}
                       </td>
+                      <td className="num text-ink-2">{i.onHand + i.sold}</td>
                       <td className="num font-semibold">{i.onHand}</td>
                       <td className="num">{i.sold || "—"}</td>
                       <td className={clsx("num hidden sm:table-cell", i.available < 0 && "text-bad")}>{i.available}</td>
@@ -156,6 +158,7 @@ export function SupplierGroups({ products, selected, canReceive, money }: { prod
                   <tr className="font-semibold">
                     <td>Total</td>
                     <td className="hidden sm:table-cell" />
+                    <td className="num">{open.onHand + open.sold}</td>
                     <td className="num">{open.onHand}</td>
                     <td className="num">{open.sold}</td>
                     <td className="hidden sm:table-cell" colSpan={2} />
