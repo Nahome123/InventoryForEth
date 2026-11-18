@@ -93,6 +93,38 @@ export async function renameBatch(db: Executor, id: number, name: string, suppli
   return clean;
 }
 
+/** Products imported before batches existed (no batch yet): how many, and units in stock. */
+export async function earlierStockSummary(db: Executor) {
+  const [r] = await db
+    .select({ products: sql<number>`count(*)::int`, units: sql<number>`coalesce(sum(${products.stockOnHand}),0)::int` })
+    .from(products)
+    .where(isNull(products.batchId));
+  return { products: Number(r?.products ?? 0), units: Number(r?.units ?? 0) };
+}
+
+/**
+ * Gives the earlier (un-batched) inventory a name: creates a batch and moves every product without
+ * a batch into it, so it can be renamed, filtered and managed like any other import.
+ * If a supplier is given, products that had no supplier get it too.
+ */
+export async function nameEarlierStock(db: Executor, userId: number, name: string, supplier: string | null) {
+  const clean = name.trim().replace(/\s+/g, " ");
+  const sup = supplier?.trim().replace(/\s+/g, " ") || null;
+  if (!clean) throw new UserError("Name can't be empty.");
+  if (clean.length > 80 || (sup?.length ?? 0) > 120) throw new UserError("Name is too long.");
+  return db.transaction(async (tx) => {
+    const [first] = await tx.select({ at: sql<string | null>`min(${products.createdAt})` }).from(products).where(isNull(products.batchId));
+    const [b] = await tx
+      .insert(batches)
+      .values({ name: clean, supplier: sup, createdBy: userId, ...(first?.at ? { createdAt: new Date(first.at) } : {}) })
+      .returning({ id: batches.id });
+    const moved = await tx.update(products).set({ batchId: b.id, updatedAt: new Date() }).where(isNull(products.batchId)).returning({ id: products.id });
+    if (!moved.length) throw new UserError("There is no earlier stock to name.");
+    if (sup) await tx.update(products).set({ supplier: sup }).where(and(eq(products.batchId, b.id), isNull(products.supplier)));
+    return { id: b.id, name: clean, products: moved.length };
+  });
+}
+
 /**
  * Deletes an import batch and everything it brought in: its products, their stock history and the
  * sales made only of its products. Refuses if a sale or customer order also contains other stock,

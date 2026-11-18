@@ -1,10 +1,10 @@
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { batchOptions, EARLIER, EARLIER_LABEL, listBatchDetails } from "@/lib/batches";
+import { batchOptions, EARLIER, EARLIER_LABEL, earlierStockSummary, listBatchDetails } from "@/lib/batches";
 import { can } from "@/lib/permissions";
 import { getSettings } from "@/lib/analytics";
 import { formatDate } from "@/lib/format";
-import { BatchRow } from "./batch-manager";
+import { BatchRow, EarlierStockRow } from "./batch-manager";
 import { getStockLevels } from "@/lib/inventory";
 import { listOrigins } from "@/lib/profit";
 import { PageHeader } from "@/components/ui";
@@ -15,7 +15,14 @@ export const metadata = { title: "Import / export" };
 export default async function ImportPage() {
   const user = await requireUser("importExport");
   const db = await getDb();
-  const [{ list, options }, levels, origins, details, settings] = await Promise.all([batchOptions(db), getStockLevels(db, { includeInactive: true }), listOrigins(db), listBatchDetails(db), getSettings(db)]);
+  const [{ list, options }, levels, origins, details, settings, earlier] = await Promise.all([
+    batchOptions(db),
+    getStockLevels(db, { includeInactive: true }),
+    listOrigins(db),
+    listBatchDetails(db),
+    getSettings(db),
+    earlierStockSummary(db),
+  ]);
   const suppliers = [...new Set([...levels.map((l) => l.supplier).filter((x): x is string => !!x), ...origins.map((o) => o.name)])].sort((a, b) => a.localeCompare(b));
   const n = list.length + 1;
   const ord = n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th";
@@ -53,11 +60,12 @@ export default async function ImportPage() {
 
       <section className="card mt-6 p-5 sm:p-6">
         <h2 className="text-lg font-semibold">Imported batches</h2>
-        <p className="mt-1 text-sm text-ink-2">Rename a batch or its supplier at any time. Deleting a batch removes everything that import brought in.</p>
-        {details.length === 0 ? (
+        <p className="mt-1 text-sm text-ink-2">Rename any import, including your earlier stock, or change its supplier at any time. Deleting a batch removes everything that import brought in.</p>
+        {details.length === 0 && earlier.products === 0 ? (
           <p className="mt-3 text-sm text-ink-3">No batches yet. Import products as a new batch above.</p>
         ) : (
           <ul className="mt-2 divide-y divide-line">
+            {earlier.products > 0 && <EarlierStockRow products={earlier.products} units={earlier.units} />}
             {details.map((b) => (
               <BatchRow
                 key={b.id}

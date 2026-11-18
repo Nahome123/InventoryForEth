@@ -6,7 +6,7 @@ import { getDb } from "@/lib/db";
 import { errorMessage, UserError } from "@/lib/errors";
 import { importProducts, importSales } from "@/lib/import";
 import { getSettings } from "@/lib/analytics";
-import { deleteBatch, EARLIER, renameBatch } from "@/lib/batches";
+import { deleteBatch, EARLIER, nameEarlierStock, renameBatch } from "@/lib/batches";
 import { toId } from "@/lib/ids";
 import type { ActionState } from "@/components/form";
 
@@ -67,6 +67,17 @@ export async function renameBatchAction(id: number, _: ActionState, fd: FormData
     const name = await renameBatch(await getDb(), id, String(fd.get("name") ?? ""), String(fd.get("supplier") ?? ""));
     revalidateAll();
     return { ok: `Saved as “${name}”.` };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
+export async function nameEarlierStockAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const user = await requireActionUser("importExport");
+    const r = await nameEarlierStock(await getDb(), user.id, String(fd.get("name") ?? ""), String(fd.get("supplier") ?? ""));
+    revalidateAll();
+    return { ok: `Earlier stock is now “${r.name}” (${r.products} product${r.products === 1 ? "" : "s"}).` };
   } catch (e) {
     return { error: errorMessage(e) };
   }

@@ -4,9 +4,48 @@ import Link from "next/link";
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Field, FormMessage, SubmitButton, useActionForm } from "@/components/form";
-import { deleteBatchAction, renameBatchAction } from "./actions";
+import { deleteBatchAction, nameEarlierStockAction, renameBatchAction } from "./actions";
 
 export type ManagedBatch = { id: number; name: string; supplier: string | null; created: string; products: number; units: number; sales: number; mixedSales: number; orders: number };
+
+/** The inventory imported before batches existed: can be given a name, which turns it into a normal batch. */
+export function EarlierStockRow({ products, units }: { products: number; units: number }) {
+  const [open, setOpen] = useState(false);
+  const form = useActionForm(nameEarlierStockAction, null);
+  return (
+    <li className="py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold">Earlier stock</div>
+          <div className="text-xs text-ink-3">{`${products} products · ${units} in stock · imported before batches, no name yet`}</div>
+        </div>
+        <div className="flex shrink-0 gap-1.5">
+          <Link href="/inventory?batch=earlier" className="btn-secondary min-h-9 px-3 text-sm">
+            View
+          </Link>
+          <button type="button" className="btn-secondary min-h-9 px-3 text-sm" onClick={() => setOpen(!open)} aria-expanded={open}>
+            <Pencil size={14} aria-hidden /> Rename
+          </button>
+        </div>
+      </div>
+      {open && (
+        <form onSubmit={form.onSubmit} className="mt-3 space-y-2 rounded-xl border border-line bg-surface-2 p-3">
+          <FormMessage state={form.state} />
+          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <Field label="Name">
+              <input className="input" name="name" placeholder="e.g. 1st buy" required maxLength={80} />
+            </Field>
+            <Field label="Supplier (optional)">
+              <input className="input" name="supplier" maxLength={120} translate="no" />
+            </Field>
+            <SubmitButton pending={form.pending}>Save</SubmitButton>
+          </div>
+          <p className="text-xs text-ink-3">This turns the earlier stock into a named batch. Nothing is lost: its products, stock and sales stay the same.</p>
+        </form>
+      )}
+    </li>
+  );
+}
 
 /** One import batch: details, rename, and (owner only) delete with a clear summary of what goes. */
 export function BatchRow({ b, canDelete }: { b: ManagedBatch; canDelete: boolean }) {

@@ -524,6 +524,10 @@ export const AM: Record<string, string> = {
   "Changing the supplier also updates it on this batch's products.": "አቅራቢውን መቀየር በዚህ ባች ምርቶች ላይም ያዘምነዋል።",
   "Tick the box to confirm.": "ለማረጋገጥ ሳጥኑን ምልክት ያድርጉ።",
   "Batch name can't be empty.": "የባች ስም ባዶ ሊሆን አይችልም።",
+  "Supplier (optional)": "አቅራቢ (አማራጭ)",
+  "e.g. 1st buy": "ለምሳሌ 1ኛ ግዢ",
+  "This turns the earlier stock into a named batch. Nothing is lost: its products, stock and sales stay the same.": "ይህ የቀድሞውን ክምችት ስም ያለው ባች ያደርገዋል። ምንም አይጠፋም፤ ምርቶቹ፣ ክምችቱ እና ሽያጮቹ እንዳሉ ይቆያሉ።",
+  "Rename any import, including your earlier stock, or change its supplier at any time.": "ማንኛውንም ያስገቡትን፣ የቀድሞውን ክምችት ጨምሮ፣ በማንኛውም ጊዜ እንደገና ይሰይሙ ወይም አቅራቢውን ይቀይሩ።",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
@@ -578,6 +582,8 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^(\d+) products · (\d+) in stock · imported before batches, no name yet$/, (m) => `${m[1]} ምርቶች · ${m[2]} በክምችት · ከባች በፊት የገቡ፣ ገና ስም የላቸውም`],
+  [/^Earlier stock is now “(.+)” \((\d+) products?\)\.$/, (m) => `የቀድሞው ክምችት አሁን “${m[1]}” ነው (${m[2]} ምርቶች)።`],
   [/^No supplier \((\d+)\)$/, (m) => `አቅራቢ የሌላቸው (${m[1]})`],
   [/^Showing products with no supplier only\.$/, () => `አቅራቢ የሌላቸው ምርቶች ብቻ እየታዩ ነው።`],
   [/^Showing (.+) only\.$/, (m) => `${m[1]} ብቻ እየታየ ነው።`],
