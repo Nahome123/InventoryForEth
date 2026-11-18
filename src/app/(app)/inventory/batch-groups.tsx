@@ -3,13 +3,14 @@ import clsx from "clsx";
 import { ChevronDown, PackagePlus, Plus } from "lucide-react";
 import { Empty, StockBadge } from "@/components/ui";
 
-export const NO_SUPPLIER = "__none";
+const EARLIER = "earlier";
 
 type Item = {
   id: number;
   name: string;
   sku: string;
-  supplier: string | null;
+  batch: string | null;
+  batchKey: string;
   onHand: number;
   available: number;
   sold: number;
@@ -20,17 +21,17 @@ type Item = {
 type Group = { key: string; name: string; items: Item[]; onHand: number; sold: number; value: number };
 
 /**
- * Inventory grouped by supplier: one card per supplier. Opening a card lists its products with
- * quantity in stock and quantity sold. The last card starts a delivery from a new supplier.
+ * Inventory grouped by import batch: one card per batch. Opening a card lists its products with
+ * total quantity, in stock and sold. The last card starts a new batch import.
  */
-export function SupplierGroups({ products, selected, canReceive, money, base = "" }: { products: Item[]; selected?: string; canReceive: boolean; money: ((c: number) => string) | null; /** Extra query (e.g. the batch filter) kept on links. */ base?: string }) {
+export function BatchGroups({ products, selected, canReceive, money, base = "" }: { products: Item[]; selected?: string; canReceive: boolean; money: ((c: number) => string) | null; /** Extra query (e.g. the batch filter) kept on links. */ base?: string }) {
   const home = base ? `/inventory?${base}` : "/inventory";
   const map = new Map<string, Group>();
   for (const p of products) {
-    const key = p.supplier ?? NO_SUPPLIER;
+    const key = p.batchKey;
     let g = map.get(key);
     if (!g) {
-      g = { key, name: p.supplier ?? "No supplier", items: [], onHand: 0, sold: 0, value: 0 };
+      g = { key, name: p.batch ?? "Earlier stock", items: [], onHand: 0, sold: 0, value: 0 };
       map.set(key, g);
     }
     g.items.push(p);
@@ -38,16 +39,16 @@ export function SupplierGroups({ products, selected, canReceive, money, base = "
     g.sold += p.sold;
     g.value += Math.max(0, p.onHand) * p.costCents;
   }
-  const groups = [...map.values()].sort((a, b) => (a.key === NO_SUPPLIER ? 1 : b.key === NO_SUPPLIER ? -1 : a.name.localeCompare(b.name)));
+  const groups = [...map.values()].sort((a, b) => (a.key === EARLIER ? 1 : b.key === EARLIER ? -1 : Number(b.key) - Number(a.key)));
   const open = groups.find((g) => g.key === selected);
 
   return (
-    <section className="mt-6" aria-labelledby="by-supplier">
+    <section className="mt-6" aria-labelledby="by-batch">
       <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h2 id="by-supplier" className="text-lg font-semibold">
-          By supplier
+        <h2 id="by-batch" className="text-lg font-semibold">
+          By batch
         </h2>
-        <span className="text-xs text-ink-3">Tap a supplier to see its products</span>
+        <span className="text-xs text-ink-3">Tap a batch to see its products</span>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -56,7 +57,7 @@ export function SupplierGroups({ products, selected, canReceive, money, base = "
           return (
             <Link
               key={g.key}
-              href={isOpen ? home : `/inventory?${base ? `${base}&` : ""}group=${encodeURIComponent(g.key)}#supplier-panel`}
+              href={isOpen ? home : `/inventory?${base ? `${base}&` : ""}group=${encodeURIComponent(g.key)}#batch-panel`}
               scroll={false}
               aria-expanded={isOpen}
               className={clsx("card block p-4 transition hover:-translate-y-0.5 sm:p-5", isOpen ? "ring-2 ring-accent" : "hover:ring-2 hover:ring-accent/25")}
@@ -64,7 +65,7 @@ export function SupplierGroups({ products, selected, canReceive, money, base = "
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="eyebrow">{`${g.items.length} product${g.items.length === 1 ? "" : "s"}`}</div>
-                  <div className={clsx("mt-1 truncate font-display text-lg font-semibold", g.key === NO_SUPPLIER && "text-ink-2")} translate={g.key === NO_SUPPLIER ? undefined : "no"}>
+                  <div className={clsx("mt-1 truncate font-display text-lg font-semibold", g.key === EARLIER && "text-ink-2")} translate={g.key === EARLIER ? undefined : "no"}>
                     {g.name}
                   </div>
                 </div>
@@ -89,26 +90,26 @@ export function SupplierGroups({ products, selected, canReceive, money, base = "
         })}
 
         {canReceive && (
-          <Link href="/inventory/receive?new=1" className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-dashed border-line-strong p-4 text-center text-ink-2 transition hover:border-accent hover:text-accent-fg">
+          <Link href="/import" className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-dashed border-line-strong p-4 text-center text-ink-2 transition hover:border-accent hover:text-accent-fg">
             <Plus size={22} aria-hidden />
-            <span className="font-semibold">Add supplier</span>
-            <span className="text-xs text-ink-3">Receive stock from a new supplier</span>
+            <span className="font-semibold">New batch</span>
+            <span className="text-xs text-ink-3">Import a new batch of products</span>
           </Link>
         )}
       </div>
 
       {open && (
-        <div id="supplier-panel" className="card mt-4 scroll-mt-24 overflow-hidden">
+        <div id="batch-panel" className="card mt-4 scroll-mt-24 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
             <div className="min-w-0">
-              <h3 className="truncate font-display text-lg font-semibold" translate={open.key === NO_SUPPLIER ? undefined : "no"}>
+              <h3 className="truncate font-display text-lg font-semibold" translate={open.key === EARLIER ? undefined : "no"}>
                 {open.name}
               </h3>
               <p className="text-xs text-ink-3">{`${open.items.length} products · ${open.onHand + open.sold} total · ${open.onHand} in stock · ${open.sold} sold`}</p>
             </div>
             <div className="flex gap-2">
-              {canReceive && open.key !== NO_SUPPLIER && (
-                <Link href={`/inventory/receive?supplier=${encodeURIComponent(open.name)}`} className="btn-primary">
+              {canReceive && (
+                <Link href="/inventory/receive" className="btn-primary">
                   <PackagePlus size={16} aria-hidden /> Add stock
                 </Link>
               )}

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { eq, sql } from "drizzle-orm";
 import { saleItems, sales } from "@/lib/db/schema";
-import { SupplierGroups } from "./supplier-groups";
-import { batchOptions, parseBatch } from "@/lib/batches";
+import { BatchGroups } from "./batch-groups";
+import { batchLabel, batchOptions, parseBatch } from "@/lib/batches";
 import { BatchFilter } from "@/components/batch-filter";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -20,7 +20,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const db = await getDb();
   const batch = parseBatch(sp.batch);
-  const [allLevels, s, soldRows, { options: batchOpts }] = await Promise.all([
+  const [allLevels, s, soldRows, { list: batchList, options: batchOpts }] = await Promise.all([
     getStockLevels(db),
     getSettings(db),
     db
@@ -34,6 +34,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
   // Batch filter: every number on the page covers only that import batch.
   const levels = batch === undefined ? allLevels : allLevels.filter((l) => l.batchId === batch);
   const sold = new Map(soldRows.map((r) => [r.productId, Number(r.qty)]));
+  const batchName = new Map(batchList.map((b) => [b.id, batchLabel(b)]));
   const showCosts = can(user.role, "viewCosts");
   const out = levels.filter((l) => l.status === "out");
   const low = levels.filter((l) => l.status === "low");
@@ -73,7 +74,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
         {showCosts ? <StatTile label="Stock value (cost)" value={formatMoney(value, s.currency)} hint={`${formatMoney(retail, s.currency)} at selling price`} /> : <StatTile label="Needs attention" value={out.length + low.length} />}
       </div>
 
-      <SupplierGroups
+      <BatchGroups
         base={sp.batch ? `batch=${encodeURIComponent(sp.batch)}` : ""}
         selected={sp.group}
         canReceive={can(user.role, "adjustStock")}
@@ -82,7 +83,8 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
           id: l.id,
           name: l.name,
           sku: l.sku,
-          supplier: l.supplier,
+          batch: l.batchId ? (batchName.get(l.batchId) ?? null) : null,
+          batchKey: l.batchId ? String(l.batchId) : "earlier",
           onHand: l.onHand,
           available: l.available,
           sold: sold.get(l.id) ?? 0,
@@ -119,7 +121,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                 subtitle={
                   <>
                     <span className="font-mono">{l.sku}</span>
-                    {l.supplier ? ` · ${l.supplier}` : ""}
+                    {l.batchId ? ` · ${batchName.get(l.batchId)}` : ""}
                   </>
                 }
                 aside={<span className={l.available < 0 ? "text-bad" : ""}>{l.available}</span>}
@@ -143,7 +145,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                 <th className="num">Reserved</th>
                 <th className="num">Available</th>
                 <th className="num hidden sm:table-cell">Reorder level</th>
-                <th className="hidden md:table-cell">Supplier</th>
+                <th className="hidden md:table-cell">Batch</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -160,7 +162,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                   <td className="num text-ink-2">{l.committed || "—"}</td>
                   <td className={`num font-semibold ${l.available < 0 ? "text-bad" : ""}`}>{l.available}</td>
                   <td className="num hidden text-ink-2 sm:table-cell">{l.reorderLevel}</td>
-                  <td className="hidden text-ink-2 md:table-cell">{l.supplier ?? "—"}</td>
+                  <td className="hidden text-ink-2 md:table-cell" translate="no">{l.batchId ? batchName.get(l.batchId) : "Earlier stock"}</td>
                   <td>
                     <StockBadge status={l.status} />
                   </td>

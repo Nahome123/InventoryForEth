@@ -535,6 +535,11 @@ export const AM: Record<string, string> = {
   "Rename any import, including your earlier stock, at any time. The name is also its supplier.": "ማንኛውንም ያስገቡትን፣ የቀድሞውን ክምችት ጨምሮ፣ በማንኛውም ጊዜ እንደገና ይሰይሙ። ስሙ አቅራቢውም ነው።",
   "e.g. AMR": "ለምሳሌ AMR",
   "e.g. China supplier 1": "ለምሳሌ China supplier 1",
+  "By batch": "በባች",
+  "Tap a batch to see its products": "ምርቶቹን ለማየት ባች ይንኩ",
+  "New batch": "አዲስ ባች",
+  "Import a new batch of products": "አዲስ የምርቶች ባች ያስገቡ",
+  "Search name, part no. or barcode": "ስም፣ የክፍል ቁጥር ወይም ባርኮድ ይፈልጉ",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",

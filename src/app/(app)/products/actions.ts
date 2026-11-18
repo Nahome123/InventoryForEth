@@ -1,9 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { inArray } from "drizzle-orm";
-import { products } from "@/lib/db/schema";
-import { toId } from "@/lib/ids";
 import { redirect } from "next/navigation";
 import { requireActionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -77,24 +74,3 @@ export async function adjustStockAction(_: ActionState, fd: FormData): Promise<A
   }
 }
 
-/** Label many products with one supplier at once (blank clears the label). */
-export async function setSupplierAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  try {
-    await requireActionUser("manageProducts");
-    const ids = fd
-      .getAll("ids")
-      .map((v) => toId(v))
-      .filter((v): v is number => v !== null);
-    if (!ids.length) throw new UserError("Tick at least one product.");
-    const supplier = String(fd.get("supplier") ?? "").trim().replace(/\s+/g, " ");
-    if (supplier.length > 120) throw new UserError("Supplier name is too long.");
-    await (await getDb())
-      .update(products)
-      .set({ supplier: supplier || null, updatedAt: new Date() })
-      .where(inArray(products.id, ids));
-    revalidatePath("/products");
-    return { ok: supplier ? `${ids.length} product${ids.length === 1 ? "" : "s"} labelled “${supplier}”.` : `Supplier removed from ${ids.length} product${ids.length === 1 ? "" : "s"}.` };
-  } catch (e) {
-    return { error: errorMessage(e) };
-  }
-}

@@ -20,6 +20,14 @@ export function supplierScope(v: string | undefined): Scope | undefined {
   return { products: eq(products.supplier, v), expenses: sql`${expenses.batchId} in (select ${batches.id} from ${batches} where ${batches.supplier} = ${v})` };
 }
 
+/** A slice of the business: one import batch (null = earlier stock). */
+export function batchScope(b: number | null | undefined): Scope | undefined {
+  if (b === undefined) return undefined;
+  return b === null
+    ? { products: isNull(products.batchId), expenses: isNull(expenses.batchId) }
+    : { products: eq(products.batchId, b), expenses: eq(expenses.batchId, b) };
+}
+
 /** Supplier toggle options, with product counts. */
 export async function supplierOptions(db: Executor) {
   const rows = await db

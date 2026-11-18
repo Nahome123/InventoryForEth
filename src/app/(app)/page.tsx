@@ -4,7 +4,8 @@ import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { getDashboard, getRestockReport, getTopProducts } from "@/lib/analytics";
 import { getProfitSummary, periodRange, type ProfitSummary } from "@/lib/profit";
-import { NO_SUPPLIER, supplierOptions, supplierScope } from "@/lib/scope";
+import { batchScope } from "@/lib/scope";
+import { batchOptions, EARLIER_LABEL, parseBatch } from "@/lib/batches";
 import { orderItems, products } from "@/lib/db/schema";
 import { sql } from "drizzle-orm";
 import { BatchFilter } from "@/components/batch-filter";
@@ -17,13 +18,14 @@ import { BarChart } from "@/components/bar-chart";
 
 export const metadata = { title: "Home" };
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string; supplier?: string }> }) {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string; batch?: string }> }) {
   const user = await requireUser();
-  const { denied, supplier } = await searchParams;
-  // Supplier toggle: every number on this page covers only that supplier's products (or everything).
-  const scope = supplierScope(supplier);
+  const { denied, batch: batchParam } = await searchParams;
+  // Batch toggle: every number on this page covers only that import batch (or everything).
+  const batch = parseBatch(batchParam);
+  const scope = batchScope(batch);
   const db = await getDb();
-  const [d, restock, top, orders, suppliers] = await Promise.all([
+  const [d, restock, top, orders, { list: batchList, options: batchOpts }] = await Promise.all([
     getDashboard(db, scope?.products),
     getRestockReport(db),
     getTopProducts(db, 30, 5, scope?.products),
@@ -40,14 +42,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       )
       .orderBy(asc(customerOrders.dueDate))
       .limit(5),
-    supplierOptions(db),
+    batchOptions(db),
   ]);
   const showCosts = can(user.role, "viewCosts");
   const tz = d.settings.timezone;
   const [pMonth, pAll] = showCosts ? await Promise.all([getProfitSummary(db, tz, periodRange("month", tz), undefined, scope), getProfitSummary(db, tz, periodRange("all", tz), undefined, scope)]) : [null, null];
   const cur = d.settings.currency;
   const money = (c: number) => formatMoney(c, cur);
-  const urgent = restock.rows.filter((r) => r.forecast.urgency !== "ok" && (!supplier || (supplier === NO_SUPPLIER ? !r.supplier : r.supplier === supplier))).sort((a, b) => (a.forecast.urgency === b.forecast.urgency ? a.available - b.available : a.forecast.urgency === "order_now" ? -1 : 1));
+  const urgent = restock.rows.filter((r) => r.forecast.urgency !== "ok" && (batch === undefined || r.batchId === batch)).sort((a, b) => (a.forecast.urgency === b.forecast.urgency ? a.available - b.available : a.forecast.urgency === "order_now" ? -1 : 1));
   const short = (ymd: string) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(ymd + "T00:00:00Z"));
 
   return (
@@ -60,7 +62,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <PageHeader
         eyebrow={new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeZone: d.settings.timezone }).format(new Date())}
         title={`Hello, ${user.fullName.split(" ")[0]}.`}
-        subtitle={supplier ? `Showing ${supplier === NO_SUPPLIER ? "products with no supplier" : supplier} only.` : "Here's how the shop is doing today."}
+        subtitle={batch !== undefined ? `Showing ${batch === null ? EARLIER_LABEL : (batchList.find((b) => b.id === batch)?.name ?? "this batch")} only.` : "Here's how the shop is doing today."}
         actions={
           can(user.role, "recordSales") && (
             <Link href="/sales/new" className="btn-primary lg:hidden">
@@ -69,7 +71,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )
         }
       />
-      <BatchFilter param="supplier" options={suppliers} value={supplier} />
+      <BatchFilter options={batchOpts} value={batchParam} />
 
       <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         <StatTile label="Today" value={money(d.today.revenue)} hint={`${d.today.count} sale${d.today.count === 1 ? "" : "s"}`} href="/sales" />
