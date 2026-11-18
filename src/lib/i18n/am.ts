@@ -513,6 +513,17 @@ export const AM: Record<string, string> = {
   "Not tied to a batch": "ከባች ጋር ያልተያያዘ",
   "Choose which batch these sales belong to.": "እነዚህ ሽያጮች የትኛው ባች እንደሆኑ ይምረጡ።",
   "Give this batch a name, e.g. “3rd buy”.": "ለዚህ ባች ስም ይስጡ፣ ለምሳሌ “3ኛ ግዢ”።",
+  "Imported batches": "የገቡ ባቾች",
+  "Rename a batch or its supplier at any time. Deleting a batch removes everything that import brought in.": "ባችን ወይም አቅራቢውን በማንኛውም ጊዜ እንደገና ይሰይሙ። ባችን መሰረዝ ያ ማስገባት ያመጣውን ሁሉ ያስወግዳል።",
+  "No batches yet. Import products as a new batch above.": "እስካሁን ባች የለም። ከላይ ምርቶችን እንደ አዲስ ባች ያስገቡ።",
+  "View": "እይ",
+  "Rename": "እንደገና ሰይም",
+  "Delete": "ሰርዝ",
+  "Delete batch": "ባቹን ሰርዝ",
+  "Deleting…": "በመሰረዝ ላይ…",
+  "Changing the supplier also updates it on this batch's products.": "አቅራቢውን መቀየር በዚህ ባች ምርቶች ላይም ያዘምነዋል።",
+  "Tick the box to confirm.": "ለማረጋገጥ ሳጥኑን ምልክት ያድርጉ።",
+  "Batch name can't be empty.": "የባች ስም ባዶ ሊሆን አይችልም።",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
@@ -567,6 +578,10 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^(\d+) products · (-?\d+) in stock · (\d+) sales · imported (.+)$/, (m) => `${m[1]} ምርቶች · ${m[2]} በክምችት · ${m[3]} ሽያጮች · የገባው ${m[4]}`],
+  [/^Yes, delete “(.+)”$/, (m) => `አዎ፣ “${m[1]}”ን ሰርዝ`],
+  [/^Saved as “(.+)”\.$/, (m) => `“${m[1]}” ተብሎ ተቀምጧል።`],
+  [/^Deleted “(.+)”: (\d+) products? and (\d+) sales? removed\.$/, (m) => `“${m[1]}” ተሰርዟል፦ ${m[2]} ምርቶች እና ${m[3]} ሽያጮች ተወግደዋል።`],
   [/^New batch “(.+)” created with (\d+) products?\. Pick it in the Batch filter to see its own numbers\.$/, (m) => `አዲስ ባች “${m[1]}” በ${m[2]} ምርቶች ተፈጥሯል። የራሱን ቁጥሮች ለማየት በባች ማጣሪያው ይምረጡት።`],
   [/^Earlier stock \((\d+)\)$/, (m) => `የቀድሞ ክምችት (${m[1]})`],
   [/^Edit sale (S-\d+)$/, (m) => `ሽያጭ ${m[1]} አስተካክል`],

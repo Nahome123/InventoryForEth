@@ -1,6 +1,10 @@
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { batchOptions, EARLIER, EARLIER_LABEL } from "@/lib/batches";
+import { batchOptions, EARLIER, EARLIER_LABEL, listBatchDetails } from "@/lib/batches";
+import { can } from "@/lib/permissions";
+import { getSettings } from "@/lib/analytics";
+import { formatDate } from "@/lib/format";
+import { BatchRow } from "./batch-manager";
 import { getStockLevels } from "@/lib/inventory";
 import { listOrigins } from "@/lib/profit";
 import { PageHeader } from "@/components/ui";
@@ -9,9 +13,9 @@ import { ProductImportForm, SalesImportForm } from "./import-forms";
 export const metadata = { title: "Import / export" };
 
 export default async function ImportPage() {
-  await requireUser("importExport");
+  const user = await requireUser("importExport");
   const db = await getDb();
-  const [{ list, options }, levels, origins] = await Promise.all([batchOptions(db), getStockLevels(db, { includeInactive: true }), listOrigins(db)]);
+  const [{ list, options }, levels, origins, details, settings] = await Promise.all([batchOptions(db), getStockLevels(db, { includeInactive: true }), listOrigins(db), listBatchDetails(db), getSettings(db)]);
   const suppliers = [...new Set([...levels.map((l) => l.supplier).filter((x): x is string => !!x), ...origins.map((o) => o.name)])].sort((a, b) => a.localeCompare(b));
   const n = list.length + 1;
   const ord = n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th";
@@ -46,6 +50,24 @@ export default async function ImportPage() {
         </section>
       </div>
       <p className="mt-3 text-xs text-ink-3">Imports are all-or-nothing: if any row has a problem, nothing is saved and you&apos;ll see the row numbers to fix.</p>
+
+      <section className="card mt-6 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">Imported batches</h2>
+        <p className="mt-1 text-sm text-ink-2">Rename a batch or its supplier at any time. Deleting a batch removes everything that import brought in.</p>
+        {details.length === 0 ? (
+          <p className="mt-3 text-sm text-ink-3">No batches yet. Import products as a new batch above.</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-line">
+            {details.map((b) => (
+              <BatchRow
+                key={b.id}
+                canDelete={can(user.role, "manageSettings")}
+                b={{ id: b.id, name: b.name, supplier: b.supplier, created: formatDate(b.createdAt, settings.timezone), products: b.products, units: b.units, sales: b.sales, mixedSales: b.mixedSales, orders: b.orders }}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="card mt-6 p-5 sm:p-6">
         <h2 className="mb-3 text-lg font-semibold">Export</h2>

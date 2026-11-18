@@ -6,7 +6,7 @@ import { getDb } from "@/lib/db";
 import { errorMessage, UserError } from "@/lib/errors";
 import { importProducts, importSales } from "@/lib/import";
 import { getSettings } from "@/lib/analytics";
-import { EARLIER } from "@/lib/batches";
+import { deleteBatch, EARLIER, renameBatch } from "@/lib/batches";
 import { toId } from "@/lib/ids";
 import type { ActionState } from "@/components/form";
 
@@ -52,6 +52,33 @@ export async function importSalesAction(_: ActionState, fd: FormData): Promise<A
     if (r.errors.length) return { error: "Nothing was imported. Fix these rows and try again:", errors: r.errors };
     revalidatePath("/sales");
     return { ok: `Imported ${r.sales} sale${r.sales === 1 ? "" : "s"} from ${r.lines} rows.` };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
+function revalidateAll() {
+  for (const p of ["/import", "/products", "/inventory", "/sales", "/profit", "/"]) revalidatePath(p);
+}
+
+export async function renameBatchAction(id: number, _: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    await requireActionUser("importExport");
+    const name = await renameBatch(await getDb(), id, String(fd.get("name") ?? ""), String(fd.get("supplier") ?? ""));
+    revalidateAll();
+    return { ok: `Saved as “${name}”.` };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
+export async function deleteBatchAction(id: number, _: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    await requireActionUser("manageSettings");
+    if (fd.get("confirm") !== "on") throw new UserError("Tick the box to confirm.");
+    const r = await deleteBatch(await getDb(), id);
+    revalidateAll();
+    return { ok: `Deleted “${r.name}”: ${r.products} product${r.products === 1 ? "" : "s"} and ${r.sales} sale${r.sales === 1 ? "" : "s"} removed.` };
   } catch (e) {
     return { error: errorMessage(e) };
   }
