@@ -220,14 +220,16 @@ export async function importSales(db: Executor, csv: string, opts: { userId: num
   if (!rows.length) throw new UserError("The file has no data rows.");
   if (rows.length > 20000) throw new UserError("Please import at most 20,000 rows at a time.");
   const errors: string[] = [];
-  const skus = [...new Set(rows.map((r) => pick(r, "sku", "code", "product_code", "part_no", "part_number", "part").replace(/\s+/g, "-").toLowerCase()).filter(Boolean))];
-  const prods = skus.length
-    ? await db
-        .select()
-        .from(products)
-        .where(and(inArray(sql`lower(${products.sku})`, skus), opts.batchId == null ? isNull(products.batchId) : eq(products.batchId, opts.batchId)))
-    : [];
+  // All products in the chosen batch; rows match by part number, or by product name when the part number is blank or unknown.
+  const prods = await db
+    .select()
+    .from(products)
+    .where(opts.batchId == null ? isNull(products.batchId) : eq(products.batchId, opts.batchId));
   const bySku = new Map(prods.map((p) => [p.sku.toLowerCase(), p]));
+  const nameKey = (n: string) => n.toLowerCase().replace(/\s+/g, " ").trim();
+  const nameCount = new Map<string, number>();
+  for (const p of prods) nameCount.set(nameKey(p.name), (nameCount.get(nameKey(p.name)) ?? 0) + 1);
+  const byName = new Map(prods.filter((p) => nameCount.get(nameKey(p.name)) === 1).map((p) => [nameKey(p.name), p]));
   const now = Date.now();
 
   type Group = { soldAt: Date | null; method: PaymentMethod; customer: string; items: { productId: number; quantity: number; unitPriceCents: number }[] };
@@ -240,12 +242,23 @@ export async function importSales(db: Executor, csv: string, opts: { userId: num
     const priceStr = cleanNum(pick(r, "unit_price", "price", "sold_price", "sell_price"));
     const method = (pick(r, "payment_method", "payment") || "cash").toLowerCase().replace(/\s+/g, "_") as PaymentMethod;
     const soldAt = dateStr ? parseLocalDateTime(dateStr, opts.timeZone) : null;
-    const p = bySku.get(sku.toLowerCase());
+    const name = pick(r, "product", "name", "product_name", "item", "item_name");
+    const p = (sku ? bySku.get(sku.toLowerCase()) : undefined) ?? (name ? byName.get(nameKey(name)) : undefined);
     const problems: string[] = [];
     if (dateStr && !soldAt) problems.push(`date "${dateStr}" must look like 2026-09-01 or 2026-09-01 14:30 (or leave it blank if unknown)`);
     else if (soldAt && soldAt.getTime() > now + 60_000) problems.push("date is in the future");
-    if (!sku) problems.push("SKU is missing");
-    else if (!p) problems.push(`no product with SKU "${sku}" in the chosen batch (import its products first, or pick another batch)`);
+    if (!sku && !name) problems.push("SKU or product name is missing");
+    else if (!p && !sku && (nameCount.get(nameKey(name)) ?? 0) > 1)
+      problems.push(
+        `several products are named "${name}" (${prods
+          .filter((x) => nameKey(x.name) === nameKey(name))
+          .map((x) => x.sku)
+          .join(", ")}), so add the SKU`,
+      );
+    else if (!p)
+      problems.push(
+        `no product ${[sku && `with SKU "${sku}"`, name && `named "${name}"`].filter(Boolean).join(" or ")} in the chosen batch (import its products first, or pick another batch)`,
+      );
     if (!Number.isInteger(qty) || qty <= 0) problems.push("quantity must be a whole number of at least 1");
     const price = priceStr === "" ? (p?.sellPriceCents ?? 0) : parseMoneyToCents(priceStr);
     if (price === null || price < 0) problems.push(`unit price "${priceStr}" is not a valid amount`);

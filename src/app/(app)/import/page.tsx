@@ -40,7 +40,7 @@ export default async function ImportPage() {
         <section className="card space-y-3 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">2. Import past sales</h2>
           <p className="text-sm text-ink-2">
-            Columns: <code>date</code> (2026-09-01 or 2026-09-01 14:30), <code>sku</code>, <code>quantity</code>. Optional: unit_price (defaults to the current price), payment_method, customer, receipt. Rows
+            Columns: <code>product</code> and/or <code>sku</code> (matched by part number, or by name if the part number is blank), <code>quantity</code>, <code>unit_price</code>. Optional: date (2026-09-01 or 2026-09-01 14:30, blank if unknown), customer, payment_method, receipt. Rows
             sharing a receipt number on the same day become one sale. Past sales feed the demand forecast.
           </p>
           <a className="text-sm text-accent-fg underline" href="/api/export/template-sales">
