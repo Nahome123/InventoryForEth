@@ -2,6 +2,7 @@ import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import type { Executor } from "./db/client";
 import { expenses, products, saleItems, saleOrigins, sales, users } from "./db/schema";
 import { productBatchWhere } from "./batches";
+import type { Scope } from "./scope";
 import { addDays } from "./analytics";
 import { todayInZone } from "./format";
 
@@ -50,17 +51,25 @@ export type ProfitSummary = {
   byExpenseCategory: { category: string; amount: number }[];
 };
 
-export async function getProfitSummary(db: Executor, tz: string, range: { from: string | null; to: string | null }, batch?: number | null): Promise<ProfitSummary> {
+export async function getProfitSummary(
+  db: Executor,
+  tz: string,
+  range: { from: string | null; to: string | null },
+  batch?: number | null,
+  /** Alternative to `batch`: any product slice (e.g. one supplier). */
+  scope?: Scope,
+): Promise<ProfitSummary> {
   const local = sql`(${sales.soldAt} at time zone ${tz})::date`;
   const saleWhere: SQL | undefined = and(
     eq(sales.status, "completed"),
     range.from ? sql`${local} >= ${range.from}::date` : undefined,
     range.to ? sql`${local} <= ${range.to}::date` : undefined,
   );
-  const scoped = batch !== undefined;
-  const lineInBatch = scoped ? sql`${saleItems.productId} in (select ${products.id} from ${products} where ${productBatchWhere(batch)})` : undefined;
+  const scoped = batch !== undefined || scope !== undefined;
+  const productCond = scope ? scope.products : productBatchWhere(batch);
+  const lineInBatch = scoped ? sql`${saleItems.productId} in (select ${products.id} from ${products} where ${productCond})` : undefined;
   const lineWhere = and(saleWhere, lineInBatch);
-  const expBatch = !scoped ? undefined : batch === null ? sql`${expenses.batchId} is null` : eq(expenses.batchId, batch);
+  const expBatch = scope ? scope.expenses : batch === undefined ? undefined : batch === null ? sql`${expenses.batchId} is null` : eq(expenses.batchId, batch);
   const expWhere = and(expBatch, range.from ? sql`${expenses.spentOn} >= ${range.from}::date` : undefined, range.to ? sql`${expenses.spentOn} <= ${range.to}::date` : undefined);
 
   const [[totals], [costRow], origins, [undated], [expTotal], expCats] = await Promise.all([

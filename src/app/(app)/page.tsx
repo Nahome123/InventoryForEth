@@ -4,6 +4,10 @@ import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { getDashboard, getRestockReport, getTopProducts } from "@/lib/analytics";
 import { getProfitSummary, periodRange, type ProfitSummary } from "@/lib/profit";
+import { NO_SUPPLIER, supplierOptions, supplierScope } from "@/lib/scope";
+import { orderItems, products } from "@/lib/db/schema";
+import { sql } from "drizzle-orm";
+import { BatchFilter } from "@/components/batch-filter";
 import { customerOrders } from "@/lib/db/schema";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
@@ -13,27 +17,37 @@ import { BarChart } from "@/components/bar-chart";
 
 export const metadata = { title: "Home" };
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string; supplier?: string }> }) {
   const user = await requireUser();
-  const { denied } = await searchParams;
+  const { denied, supplier } = await searchParams;
+  // Supplier toggle: every number on this page covers only that supplier's products (or everything).
+  const scope = supplierScope(supplier);
   const db = await getDb();
-  const [d, restock, top, orders] = await Promise.all([
-    getDashboard(db),
+  const [d, restock, top, orders, suppliers] = await Promise.all([
+    getDashboard(db, scope?.products),
     getRestockReport(db),
-    getTopProducts(db, 30, 5),
+    getTopProducts(db, 30, 5, scope?.products),
     db
       .select()
       .from(customerOrders)
-      .where(and(inArray(customerOrders.status, ["pending", "ready"])))
+      .where(
+        and(
+          inArray(customerOrders.status, ["pending", "ready"]),
+          scope
+            ? sql`exists (select 1 from ${orderItems} where ${orderItems.orderId} = "customer_orders"."id" and ${orderItems.productId} in (select ${products.id} from ${products} where ${scope.products}))`
+            : undefined,
+        ),
+      )
       .orderBy(asc(customerOrders.dueDate))
       .limit(5),
+    supplierOptions(db),
   ]);
   const showCosts = can(user.role, "viewCosts");
   const tz = d.settings.timezone;
-  const [pMonth, pAll] = showCosts ? await Promise.all([getProfitSummary(db, tz, periodRange("month", tz)), getProfitSummary(db, tz, periodRange("all", tz))]) : [null, null];
+  const [pMonth, pAll] = showCosts ? await Promise.all([getProfitSummary(db, tz, periodRange("month", tz), undefined, scope), getProfitSummary(db, tz, periodRange("all", tz), undefined, scope)]) : [null, null];
   const cur = d.settings.currency;
   const money = (c: number) => formatMoney(c, cur);
-  const urgent = restock.rows.filter((r) => r.forecast.urgency !== "ok").sort((a, b) => (a.forecast.urgency === b.forecast.urgency ? a.available - b.available : a.forecast.urgency === "order_now" ? -1 : 1));
+  const urgent = restock.rows.filter((r) => r.forecast.urgency !== "ok" && (!supplier || (supplier === NO_SUPPLIER ? !r.supplier : r.supplier === supplier))).sort((a, b) => (a.forecast.urgency === b.forecast.urgency ? a.available - b.available : a.forecast.urgency === "order_now" ? -1 : 1));
   const short = (ymd: string) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(ymd + "T00:00:00Z"));
 
   return (
@@ -46,7 +60,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <PageHeader
         eyebrow={new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeZone: d.settings.timezone }).format(new Date())}
         title={`Hello, ${user.fullName.split(" ")[0]}.`}
-        subtitle="Here's how the shop is doing today."
+        subtitle={supplier ? `Showing ${supplier === NO_SUPPLIER ? "products with no supplier" : supplier} only.` : "Here's how the shop is doing today."}
         actions={
           can(user.role, "recordSales") && (
             <Link href="/sales/new" className="btn-primary lg:hidden">
@@ -55,6 +69,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )
         }
       />
+      <BatchFilter param="supplier" options={suppliers} value={supplier} />
 
       <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         <StatTile label="Today" value={money(d.today.revenue)} hint={`${d.today.count} sale${d.today.count === 1 ? "" : "s"}`} href="/sales" />

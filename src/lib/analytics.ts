@@ -1,6 +1,6 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, sql, type SQL } from "drizzle-orm";
 import type { Executor } from "./db/client";
-import { categories, customerOrders, products, saleItems, sales, settings } from "./db/schema";
+import { categories, customerOrders, orderItems, products, saleItems, sales, settings } from "./db/schema";
 import { abcClassify, forecastProduct, WINDOW_DAYS, type ForecastResult } from "./forecast";
 import { getStockLevels, type StockLevel } from "./inventory";
 import { todayInZone } from "./format";
@@ -26,7 +26,7 @@ export async function getSettings(db: Executor) {
 const localDay = (tz: string) => sql<string>`to_char(${sales.soldAt} at time zone ${tz}, 'YYYY-MM-DD')`;
 
 /** Completed-sale units and revenue per product per local day since `fromDay`. */
-async function dailyProductSales(db: Executor, tz: string, fromDay: string) {
+async function dailyProductSales(db: Executor, tz: string, fromDay: string, scope?: SQL) {
   const day = localDay(tz);
   const rows = await db
     .select({
@@ -38,7 +38,13 @@ async function dailyProductSales(db: Executor, tz: string, fromDay: string) {
     })
     .from(saleItems)
     .innerJoin(sales, eq(sales.id, saleItems.saleId))
-    .where(and(eq(sales.status, "completed"), sql`(${sales.soldAt} at time zone ${tz})::date >= ${fromDay}::date`))
+    .where(
+      and(
+        eq(sales.status, "completed"),
+        sql`(${sales.soldAt} at time zone ${tz})::date >= ${fromDay}::date`,
+        scope ? sql`${saleItems.productId} in (select ${products.id} from ${products} where ${scope})` : undefined,
+      ),
+    )
     .groupBy(sql`1`, sql`2`);
   return rows.map((r) => ({ ...r, qty: Number(r.qty), revenue: Number(r.revenue), cost: Number(r.cost) }));
 }
@@ -94,31 +100,48 @@ export async function getRestockReport(db: Executor): Promise<{ rows: RestockRow
   return { rows, today, windowStart };
 }
 
-export async function getDashboard(db: Executor) {
+/** `scope`: optional condition on products (e.g. one supplier); sales then count only those products' lines. */
+export async function getDashboard(db: Executor, scope?: SQL) {
   const s = await getSettings(db);
   const tz = s.timezone;
   const today = todayInZone(tz);
   const from30 = addDays(today, -29);
   const day = localDay(tz);
 
+  const inScope = scope ? sql`${saleItems.productId} in (select ${products.id} from ${products} where ${scope})` : undefined;
+  const orderInScope = scope
+    ? sql`exists (select 1 from ${orderItems} where ${orderItems.orderId} = "customer_orders"."id" and ${orderItems.productId} in (select ${products.id} from ${products} where ${scope}))`
+    : undefined;
   const [byDay, openOrders, dueSoon] = await Promise.all([
-    db
-      .select({
-        day,
-        count: sql<number>`count(*)::int`,
-        revenue: sql<number>`sum(${sales.totalCents})::bigint`,
-      })
-      .from(sales)
-      .where(and(eq(sales.status, "completed"), sql`(${sales.soldAt} at time zone ${tz})::date >= ${from30}::date`))
-      .groupBy(sql`1`),
+    scope
+      ? db
+          .select({
+            day,
+            count: sql<number>`count(distinct ${sales.id})::int`,
+            // Share of each sale's discounted total that came from in-scope lines.
+            revenue: sql<number>`round(sum(${saleItems.lineTotalCents}::numeric * ${sales.totalCents} / nullif(${sales.subtotalCents},0)))::bigint`,
+          })
+          .from(saleItems)
+          .innerJoin(sales, eq(sales.id, saleItems.saleId))
+          .where(and(eq(sales.status, "completed"), sql`(${sales.soldAt} at time zone ${tz})::date >= ${from30}::date`, inScope))
+          .groupBy(sql`1`)
+      : db
+          .select({
+            day,
+            count: sql<number>`count(*)::int`,
+            revenue: sql<number>`sum(${sales.totalCents})::bigint`,
+          })
+          .from(sales)
+          .where(and(eq(sales.status, "completed"), sql`(${sales.soldAt} at time zone ${tz})::date >= ${from30}::date`))
+          .groupBy(sql`1`),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(customerOrders)
-      .where(sql`${customerOrders.status} in ('pending','ready')`),
+      .where(and(sql`${customerOrders.status} in ('pending','ready')`, orderInScope)),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(customerOrders)
-      .where(and(sql`${customerOrders.status} in ('pending','ready')`, sql`${customerOrders.dueDate} <= ${addDays(today, 3)}::date`)),
+      .where(and(sql`${customerOrders.status} in ('pending','ready')`, sql`${customerOrders.dueDate} <= ${addDays(today, 3)}::date`, orderInScope)),
   ]);
 
   const map = new Map(byDay.map((r) => [r.day, { count: Number(r.count), revenue: Number(r.revenue) }]));
@@ -128,7 +151,7 @@ export async function getDashboard(db: Executor) {
   });
   const sum = (arr: typeof series) => arr.reduce((a, r) => ({ revenue: a.revenue + r.revenue, count: a.count + r.count }), { revenue: 0, count: 0 });
 
-  const lines = await dailyProductSales(db, tz, from30);
+  const lines = await dailyProductSales(db, tz, from30, scope);
   const profit30 = lines.reduce((a, r) => a + r.revenue - r.cost, 0);
   const lineRevenue30 = lines.reduce((a, r) => a + r.revenue, 0);
 
@@ -145,7 +168,7 @@ export async function getDashboard(db: Executor) {
   };
 }
 
-export async function getTopProducts(db: Executor, days: number, limit = 10) {
+export async function getTopProducts(db: Executor, days: number, limit = 10, scope?: SQL) {
   const s = await getSettings(db);
   const from = addDays(todayInZone(s.timezone), -(days - 1));
   const rows = await db
@@ -159,7 +182,7 @@ export async function getTopProducts(db: Executor, days: number, limit = 10) {
     .from(saleItems)
     .innerJoin(sales, eq(sales.id, saleItems.saleId))
     .innerJoin(products, eq(products.id, saleItems.productId))
-    .where(and(eq(sales.status, "completed"), gte(sql`(${sales.soldAt} at time zone ${s.timezone})::date`, sql`${from}::date`)))
+    .where(and(eq(sales.status, "completed"), gte(sql`(${sales.soldAt} at time zone ${s.timezone})::date`, sql`${from}::date`), scope))
     .groupBy(saleItems.productId, products.name, products.sku)
     .orderBy(sql`sum(${saleItems.lineTotalCents}) desc`)
     .limit(limit);

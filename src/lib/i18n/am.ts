@@ -578,6 +578,9 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^No supplier \((\d+)\)$/, (m) => `አቅራቢ የሌላቸው (${m[1]})`],
+  [/^Showing products with no supplier only\.$/, () => `አቅራቢ የሌላቸው ምርቶች ብቻ እየታዩ ነው።`],
+  [/^Showing (.+) only\.$/, (m) => `${m[1]} ብቻ እየታየ ነው።`],
   [/^(\d+) products · (-?\d+) in stock · (\d+) sales · imported (.+)$/, (m) => `${m[1]} ምርቶች · ${m[2]} በክምችት · ${m[3]} ሽያጮች · የገባው ${m[4]}`],
   [/^Yes, delete “(.+)”$/, (m) => `አዎ፣ “${m[1]}”ን ሰርዝ`],
   [/^Saved as “(.+)”\.$/, (m) => `“${m[1]}” ተብሎ ተቀምጧል።`],
