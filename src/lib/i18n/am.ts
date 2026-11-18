@@ -528,6 +528,13 @@ export const AM: Record<string, string> = {
   "e.g. 1st buy": "ለምሳሌ 1ኛ ግዢ",
   "This turns the earlier stock into a named batch. Nothing is lost: its products, stock and sales stay the same.": "ይህ የቀድሞውን ክምችት ስም ያለው ባች ያደርገዋል። ምንም አይጠፋም፤ ምርቶቹ፣ ክምችቱ እና ሽያጮቹ እንዳሉ ይቆያሉ።",
   "Rename any import, including your earlier stock, or change its supplier at any time.": "ማንኛውንም ያስገቡትን፣ የቀድሞውን ክምችት ጨምሮ፣ በማንኛውም ጊዜ እንደገና ይሰይሙ ወይም አቅራቢውን ይቀይሩ።",
+  "Supplier name": "የአቅራቢ ስም",
+  "Also the name of this batch.": "የዚህ ባች ስምም ነው።",
+  "Enter the supplier name for this import.": "ለዚህ ማስገቢያ የአቅራቢውን ስም ያስገቡ።",
+  "The new name is used for the batch and as the supplier on its products.": "አዲሱ ስም ለባቹ እና በምርቶቹ ላይ እንደ አቅራቢ ያገለግላል።",
+  "Rename any import, including your earlier stock, at any time. The name is also its supplier.": "ማንኛውንም ያስገቡትን፣ የቀድሞውን ክምችት ጨምሮ፣ በማንኛውም ጊዜ እንደገና ይሰይሙ። ስሙ አቅራቢውም ነው።",
+  "e.g. AMR": "ለምሳሌ AMR",
+  "e.g. China supplier 1": "ለምሳሌ China supplier 1",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",

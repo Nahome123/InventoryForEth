@@ -28,12 +28,9 @@ export function ProductImportForm({ suppliers, suggestedName }: { suppliers: str
         ))}
       </fieldset>
       {mode === "new" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Batch name">
-            <input className="input" name="batchName" defaultValue={suggestedName} required />
-          </Field>
-          <Field label="Supplier">
-            <input className="input" name="supplier" list="import-suppliers" placeholder="e.g. China supplier (name)" translate="no" />
+        <div className="grid gap-3 sm:max-w-sm">
+          <Field label="Supplier name" hint="Also the name of this batch.">
+            <input className="input" name="batchName" list="import-suppliers" placeholder={suggestedName} required maxLength={80} translate="no" />
             <datalist id="import-suppliers">
               {suppliers.map((s) => (
                 <option key={s} value={s} />

@@ -22,9 +22,10 @@ export async function importProductsAction(_: ActionState, fd: FormData): Promis
   try {
     const user = await requireActionUser("importExport");
     const separate = fd.get("mode") !== "update";
-    const supplier = String(fd.get("supplier") ?? "").trim().replace(/\s+/g, " ") || null;
     const name = String(fd.get("batchName") ?? "").trim().replace(/\s+/g, " ");
-    if (separate && !name) throw new UserError("Give this batch a name, e.g. “3rd buy”.");
+    // The supplier is the batch name.
+    const supplier = name || null;
+    if (separate && !name) throw new UserError("Enter the supplier name for this import.");
     if (name.length > 80 || (supplier?.length ?? 0) > 120) throw new UserError("Batch or supplier name is too long.");
     const r = await importProducts(await getDb(), await readCsv(fd), user.id, separate ? { batch: { name, supplier } } : {});
     if (r.errors.length) return { error: "Nothing was imported. Fix these rows and try again:", errors: r.errors };
@@ -64,7 +65,7 @@ function revalidateAll() {
 export async function renameBatchAction(id: number, _: ActionState, fd: FormData): Promise<ActionState> {
   try {
     await requireActionUser("importExport");
-    const name = await renameBatch(await getDb(), id, String(fd.get("name") ?? ""), String(fd.get("supplier") ?? ""));
+    const name = await renameBatch(await getDb(), id, String(fd.get("name") ?? ""));
     revalidateAll();
     return { ok: `Saved as “${name}”.` };
   } catch (e) {
@@ -75,7 +76,7 @@ export async function renameBatchAction(id: number, _: ActionState, fd: FormData
 export async function nameEarlierStockAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const user = await requireActionUser("importExport");
-    const r = await nameEarlierStock(await getDb(), user.id, String(fd.get("name") ?? ""), String(fd.get("supplier") ?? ""));
+    const r = await nameEarlierStock(await getDb(), user.id, String(fd.get("name") ?? ""));
     revalidateAll();
     return { ok: `Earlier stock is now “${r.name}” (${r.products} product${r.products === 1 ? "" : "s"}).` };
   } catch (e) {

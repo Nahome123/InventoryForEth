@@ -24,8 +24,6 @@ export default async function ImportPage() {
     earlierStockSummary(db),
   ]);
   const suppliers = [...new Set([...levels.map((l) => l.supplier).filter((x): x is string => !!x), ...origins.map((o) => o.name)])].sort((a, b) => a.localeCompare(b));
-  const n = list.length + 1;
-  const ord = n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th";
   // Batches newest first; "Earlier stock" is always offered for products imported before batches existed.
   const saleBatches = options.some((o) => o.value === EARLIER) ? options : [...options, { value: EARLIER, label: EARLIER_LABEL }];
   return (
@@ -42,7 +40,7 @@ export default async function ImportPage() {
           <a className="text-sm text-accent-fg underline" href="/api/export/template-products">
             Download products template
           </a>
-          <ProductImportForm suppliers={suppliers} suggestedName={`${n}${ord} buy`} />
+          <ProductImportForm suppliers={suppliers} suggestedName="e.g. AMR" />
         </section>
         <section className="card space-y-3 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">2. Import past sales</h2>
@@ -60,7 +58,7 @@ export default async function ImportPage() {
 
       <section className="card mt-6 p-5 sm:p-6">
         <h2 className="text-lg font-semibold">Imported batches</h2>
-        <p className="mt-1 text-sm text-ink-2">Rename any import, including your earlier stock, or change its supplier at any time. Deleting a batch removes everything that import brought in.</p>
+        <p className="mt-1 text-sm text-ink-2">Rename any import, including your earlier stock, at any time. The name is also its supplier. Deleting a batch removes everything that import brought in.</p>
         {details.length === 0 && earlier.products === 0 ? (
           <p className="mt-3 text-sm text-ink-3">No batches yet. Import products as a new batch above.</p>
         ) : (

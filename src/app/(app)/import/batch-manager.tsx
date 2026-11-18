@@ -31,12 +31,9 @@ export function EarlierStockRow({ products, units }: { products: number; units: 
       {open && (
         <form onSubmit={form.onSubmit} className="mt-3 space-y-2 rounded-xl border border-line bg-surface-2 p-3">
           <FormMessage state={form.state} />
-          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <Field label="Name">
-              <input className="input" name="name" placeholder="e.g. 1st buy" required maxLength={80} />
-            </Field>
-            <Field label="Supplier (optional)">
-              <input className="input" name="supplier" maxLength={120} translate="no" />
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+            <Field label="Supplier name">
+              <input className="input" name="name" placeholder="e.g. China supplier 1" required maxLength={80} translate="no" />
             </Field>
             <SubmitButton pending={form.pending}>Save</SubmitButton>
           </div>
@@ -60,7 +57,6 @@ export function BatchRow({ b, canDelete }: { b: ManagedBatch; canDelete: boolean
         <div className="min-w-0">
           <div className="font-semibold" translate="no">
             {b.name}
-            {b.supplier && <span className="font-normal text-ink-2">{` · ${b.supplier}`}</span>}
           </div>
           <div className="text-xs text-ink-3">{`${b.products} products · ${b.units} in stock · ${b.sales} sales · imported ${b.created}`}</div>
         </div>
@@ -82,16 +78,13 @@ export function BatchRow({ b, canDelete }: { b: ManagedBatch; canDelete: boolean
       {mode === "rename" && (
         <form onSubmit={rename.onSubmit} className="mt-3 space-y-2 rounded-xl border border-line bg-surface-2 p-3">
           <FormMessage state={rename.state} />
-          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <Field label="Batch name">
-              <input className="input" name="name" defaultValue={b.name} required maxLength={80} />
-            </Field>
-            <Field label="Supplier">
-              <input className="input" name="supplier" defaultValue={b.supplier ?? ""} maxLength={120} translate="no" />
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+            <Field label="Supplier name">
+              <input className="input" name="name" defaultValue={b.name} required maxLength={80} translate="no" />
             </Field>
             <SubmitButton pending={rename.pending}>Save</SubmitButton>
           </div>
-          <p className="text-xs text-ink-3">Changing the supplier also updates it on this batch&apos;s products.</p>
+          <p className="text-xs text-ink-3">The new name is used for the batch and as the supplier on its products.</p>
         </form>
       )}
 

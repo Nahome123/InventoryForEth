@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import type { Executor } from "./db/client";
 import { batches, customerOrders, expenses, orderItems, products, saleItems, sales, stockMovements } from "./db/schema";
 import { UserError } from "./errors";
@@ -37,7 +37,7 @@ export async function listBatches(db: Executor): Promise<BatchRow[]> {
   return rows.map((r) => ({ ...r, products: Number(r.products) }));
 }
 
-export const batchLabel = (b: { name: string; supplier: string | null }) => (b.supplier && !b.name.includes(b.supplier) ? `${b.name} · ${b.supplier}` : b.name);
+export const batchLabel = (b: { name: string; supplier: string | null }) => b.name;
 
 /** Options for <BatchFilter>: every batch, plus "Earlier stock" when some products have no batch. */
 export async function batchOptions(db: Executor) {
@@ -74,9 +74,10 @@ export async function listBatchDetails(db: Executor): Promise<BatchDetail[]> {
 }
 
 /** Renames a batch. Products that carried the old supplier name get the new one. */
-export async function renameBatch(db: Executor, id: number, name: string, supplier: string | null) {
+export async function renameBatch(db: Executor, id: number, name: string) {
   const clean = name.trim().replace(/\s+/g, " ");
-  const sup = supplier?.trim().replace(/\s+/g, " ") || null;
+  // The supplier is always the batch name.
+  const sup = clean || null;
   if (!clean) throw new UserError("Batch name can't be empty.");
   if (clean.length > 80 || (sup?.length ?? 0) > 120) throw new UserError("Name is too long.");
   await db.transaction(async (tx) => {
@@ -87,7 +88,7 @@ export async function renameBatch(db: Executor, id: number, name: string, suppli
       await tx
         .update(products)
         .set({ supplier: sup, updatedAt: new Date() })
-        .where(and(eq(products.batchId, id), b.supplier === null ? isNull(products.supplier) : eq(products.supplier, b.supplier)));
+        .where(and(eq(products.batchId, id), b.supplier === null ? isNull(products.supplier) : or(isNull(products.supplier), eq(products.supplier, b.supplier))));
     }
   });
   return clean;
@@ -105,11 +106,11 @@ export async function earlierStockSummary(db: Executor) {
 /**
  * Gives the earlier (un-batched) inventory a name: creates a batch and moves every product without
  * a batch into it, so it can be renamed, filtered and managed like any other import.
- * If a supplier is given, products that had no supplier get it too.
+ * The name is also the supplier: products that had no supplier get it.
  */
-export async function nameEarlierStock(db: Executor, userId: number, name: string, supplier: string | null) {
+export async function nameEarlierStock(db: Executor, userId: number, name: string) {
   const clean = name.trim().replace(/\s+/g, " ");
-  const sup = supplier?.trim().replace(/\s+/g, " ") || null;
+  const sup = clean || null;
   if (!clean) throw new UserError("Name can't be empty.");
   if (clean.length > 80 || (sup?.length ?? 0) > 120) throw new UserError("Name is too long.");
   return db.transaction(async (tx) => {
