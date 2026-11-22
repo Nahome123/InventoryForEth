@@ -14,6 +14,7 @@ export function SalesList({
   empty,
   voided = false,
   edit,
+  showCosts = false,
 }: {
   rows: Rows;
   money: (c: number) => string;
@@ -22,6 +23,8 @@ export function SalesList({
   voided?: boolean;
   /** Present when the viewer may edit sales. */
   edit?: { origins: { id: number; name: string }[]; currency: string };
+  /** Owner/manager only: show each line's buying price. Sales staff never see it. */
+  showCosts?: boolean;
 }) {
   const editButton = (sale: Rows[number]["sale"], ls: NonNullable<Rows[number]["lines"]>) =>
     edit && !voided ? (
@@ -74,7 +77,7 @@ export function SalesList({
                       { label: "Sold unit price", value: money(one.soldCents), className: "font-semibold" },
                       { label: "Qty", value: one.qty },
                       { label: "From", value: <span translate="no">{one.origin ?? "Store stock"}</span> },
-                      { label: "Cost", value: money(one.costCents), className: "text-xs font-normal text-ink-3" },
+                      ...(showCosts ? [{ label: "Cost", value: money(one.costCents), className: "text-xs font-normal text-ink-3" }] : []),
                     ]
                   : [
                       { label: "Products", value: ls.length },
@@ -95,7 +98,7 @@ export function SalesList({
                         </span>
                         <span className="shrink-0 tabular-nums">
                           {money(l.soldCents)} × {l.qty}
-                          <span className="ml-1 text-ink-3">{`(cost ${money(l.costCents)})`}</span>
+                          {showCosts && <span className="ml-1 text-ink-3">{`(cost ${money(l.costCents)})`}</span>}
                         </span>
                       </div>
                     ))}
@@ -161,7 +164,7 @@ export function SalesList({
                       {ls.map((l, i) => (
                         <div key={i} className="whitespace-nowrap leading-6">
                           {money(l.soldCents)}
-                          <span className="ml-1.5 text-[11px] font-normal text-ink-3">{`cost ${money(l.costCents)}`}</span>
+                          {showCosts && <span className="ml-1.5 text-[11px] font-normal text-ink-3">{`cost ${money(l.costCents)}`}</span>}
                         </div>
                       ))}
                     </td>

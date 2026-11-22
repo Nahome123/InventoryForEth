@@ -140,6 +140,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
         rows={rows}
         money={money}
         timezone={s.timezone}
+        showCosts={can(user.role, "viewCosts")}
         edit={can(user.role, "editSales") ? { origins: origins.map(({ id, name }) => ({ id, name })), currency: s.currency } : undefined}
         empty={sp.q ? `Not found: no sales match “${sp.q}”.` : "No sales match these filters."} />
       <Pagination page={page} hasMore={page * PAGE < count} makeHref={qs} />

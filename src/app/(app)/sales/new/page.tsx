@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { getDb } from "@/lib/db";
 import { getSettings } from "@/lib/analytics";
 import { getPickProducts } from "@/lib/pick-products";
@@ -10,9 +11,11 @@ import { PointOfSale } from "./pos";
 export const metadata = { title: "New sale" };
 
 export default async function NewSalePage() {
-  await requireUser("recordSales");
+  const user = await requireUser("recordSales");
+  // Sales staff never get the buying price (or the list price, which defaults to it); they type the agreed price.
+  const showCosts = can(user.role, "viewCosts");
   const db = await getDb();
-  const [products, s, origins] = await Promise.all([getPickProducts(db, { withCost: true }), getSettings(db), listOrigins(db, true)]);
+  const [products, s, origins] = await Promise.all([getPickProducts(db, { withCost: showCosts, hidePrice: !showCosts }), getSettings(db), listOrigins(db, true)]);
   return (
     <>
       <PageHeader title="New sale" />

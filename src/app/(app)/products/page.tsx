@@ -42,6 +42,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       (!sp.stock || (sp.stock === "low" ? p.status !== "ok" : p.status === sp.stock)),
   );
   const canEdit = can(user.role, "manageProducts");
+  // Sales staff don't see list prices (imported prices are the buying price).
+  const showPrice = can(user.role, "viewCosts");
   const suggestions: Suggestion[] = levels.flatMap((p) => [
     { value: p.name, label: p.name, sub: p.sku },
     { value: p.sku, label: p.sku, sub: p.name },
@@ -66,7 +68,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                   {p.categoryId ? ` · ${catName.get(p.categoryId)}` : ""}
                 </>
               }
-              aside={formatMoney(p.sellPriceCents, s.currency)}
+              aside={showPrice ? formatMoney(p.sellPriceCents, s.currency) : undefined}
               facts={[
                 { label: "Reserved", value: p.committed || "—" },
                 { label: "Available", value: p.available, className: p.available <= 0 ? "text-bad" : "font-semibold" },
@@ -83,7 +85,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                   <th>Product</th>
                   <th className="hidden md:table-cell">Batch</th>
                   <th className="hidden lg:table-cell">Category</th>
-                  <th className="num">Price</th>
+                  {showPrice && <th className="num">Price</th>}
                   <th className="num">Reserved</th>
                   <th className="num">Available</th>
                   <th>Status</th>
@@ -102,7 +104,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                       {p.batchId ? <Badge>{batchName.get(p.batchId)}</Badge> : <span className="text-ink-3">{EARLIER_LABEL}</span>}
                     </td>
                     <td className="hidden text-ink-2 lg:table-cell">{p.categoryId ? catName.get(p.categoryId) : "—"}</td>
-                    <td className="num">{formatMoney(p.sellPriceCents, s.currency)}</td>
+                    {showPrice && <td className="num">{formatMoney(p.sellPriceCents, s.currency)}</td>}
                     <td className="num text-ink-2">{p.committed || "—"}</td>
                     <td className="num font-semibold">{p.available}</td>
                     <td>{p.active ? <StockBadge status={p.status} /> : <Badge>Deactivated</Badge>}</td>

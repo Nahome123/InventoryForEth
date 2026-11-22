@@ -120,8 +120,12 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           ) : (
             <section className="card p-5 sm:p-6">
               <dl className="grid grid-cols-2 gap-3 text-sm">
-                <dt className="text-ink-3">Price</dt>
-                <dd>{money(p.sellPriceCents)}</dd>
+                {can(user.role, "viewCosts") && (
+                  <>
+                    <dt className="text-ink-3">Price</dt>
+                    <dd>{money(p.sellPriceCents)}</dd>
+                  </>
+                )}
                 <dt className="text-ink-3">Category</dt>
                 <dd>{category || "—"}</dd>
                 <dt className="text-ink-3">Unit</dt>
