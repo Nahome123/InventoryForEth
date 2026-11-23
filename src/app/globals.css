@@ -14,13 +14,14 @@
   --border-strong: #ddd7d1;
   --text: #1c1b1f;
   --text-2: #55535a;
-  --text-3: #8b8891;
-  --accent: #f2600c;
-  --accent-strong: #d9520a;
+  --text-3: #6e6b74; /* 4.7:1+ on every light surface (was #8b8891, 3.5:1) */
+  /* Filled accent carries white text: #cc4c0a is 4.56:1 (the brand #f2600c was 3.25:1). Charts keep --series-1. */
+  --accent: #cc4c0a;
+  --accent-strong: #b33f08;
   --accent-fg: #c2450a;
   --accent-ink: #ffffff;
   --accent-soft: #fff1e6;
-  --good: #1e8a5f;
+  --good: #1a7a54;
   --good-soft: #e4f4ec;
   --warn: #8a5a00;
   --warn-soft: #fdf1d6;
@@ -46,8 +47,8 @@
     --text: #f5f4f6;
     --text-2: #b7b5bc;
     --text-3: #8b8891;
-    --accent: #f2600c;
-    --accent-strong: #ff7a2e;
+    --accent: #cc4c0a;
+    --accent-strong: #b33f08;
     --accent-fg: #fdba74;
     --accent-ink: #ffffff;
     --accent-soft: #3a2416;

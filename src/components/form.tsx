@@ -22,11 +22,12 @@ export function useActionForm<S>(fn: (state: S, fd: FormData) => Promise<S>, ini
   return { state, onSubmit, pending };
 }
 
-export function SubmitButton({ children, pendingText, className = "btn-primary", pending: pendingProp, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { pendingText?: string; pending?: boolean }) {
+export function SubmitButton({ children, pendingText, className = "btn-primary", pending: pendingProp, disabled, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { pendingText?: string; pending?: boolean }) {
   const status = useFormStatus();
   const pending = pendingProp ?? status.pending;
+  // `disabled` is pulled out of `rest` so a caller's `disabled={false}` can't re-enable the button mid-submit (double sales).
   return (
-    <button type="submit" disabled={pending || rest.disabled} className={className} {...rest}>
+    <button type="submit" {...rest} disabled={pending || disabled} aria-busy={pending || undefined} className={className}>
       {pending ? (pendingText ?? "Saving…") : children}
     </button>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { CartLines, fmtMoney, parsePrice, ProductSearch, useCart, type OriginOption, type PickProduct } from "@/components/cart";
 import { Field, FormMessage, SubmitButton, useActionForm } from "@/components/form";
@@ -31,6 +31,9 @@ export function PointOfSale({ products, currency, origins }: { products: PickPro
   const [discount, setDiscount] = useState("");
   const [tendered, setTendered] = useState("");
   const [formKey, setFormKey] = useState(0);
+  // The sale that was just recorded. Shown big (change due!) until the cashier starts the next sale.
+  const [done, setDone] = useState<{ saleId: number; totalCents: number; changeCents: number | null } | null>(null);
+  const doneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (state?.saleId) {
@@ -39,8 +42,22 @@ export function PointOfSale({ products, currency, origins }: { products: PickPro
       setTendered("");
       setMethod("cash");
       setFormKey((k) => k + 1);
+      setDone({ saleId: state.saleId, totalCents: state.totalCents ?? 0, changeCents: state.changeCents ?? null });
     }
   }, [state]);
+
+  // On phones the cashier is scrolled down at the checkout form when the sale completes: bring the result to them.
+  useEffect(() => {
+    if (!done) return;
+    doneRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    doneRef.current?.focus({ preventScroll: true });
+  }, [done]);
+
+  const nextSale = () => {
+    setDone(null);
+    document.getElementById("product-search")?.focus();
+  };
+  const showDone = done !== null && cart.lines.length === 0;
 
   // There is no fixed selling price: the seller types the agreed price for each item.
   const subtotal = cart.lines.reduce((s, l) => s + (parsePrice(l.price) ?? 0) * l.quantity, 0);
@@ -56,18 +73,39 @@ export function PointOfSale({ products, currency, origins }: { products: PickPro
   return (
     <div className={`grid gap-5 lg:grid-cols-[1fr_340px] ${cart.lines.length ? "pb-20 lg:pb-0" : ""}`}>
       <div className="min-w-0 space-y-3">
-        {state?.saleId && (
-          <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-good-soft px-4 py-3 text-good">
-            <span className="flex items-center gap-2 font-semibold">
-              <CheckCircle2 size={20} aria-hidden /> Sale recorded · {fmtMoney(state.totalCents ?? 0, currency)}
-              {state.changeCents != null && state.changeCents > 0 && <span className="font-normal">· Change due {fmtMoney(state.changeCents, currency)}</span>}
-            </span>
-            <Link href={`/sales/${state.saleId}`} className="text-sm underline">
-              View receipt
-            </Link>
+        {showDone && (
+          <div
+            ref={doneRef}
+            tabIndex={-1}
+            role="status"
+            aria-live="polite"
+            className="scroll-mt-24 rounded-2xl border border-good/30 bg-good-soft p-5 text-center focus:outline-none sm:p-6"
+          >
+            <div className="flex items-center justify-center gap-2 font-semibold text-good">
+              <CheckCircle2 size={22} aria-hidden /> Sale recorded · {fmtMoney(done.totalCents, currency)}
+            </div>
+            {done.changeCents != null && done.changeCents > 0 ? (
+              <div className="mt-3">
+                <div className="text-sm font-semibold uppercase tracking-[0.08em] text-ink-2">Change due</div>
+                <div className="font-display text-5xl font-bold leading-tight tabular-nums text-ink sm:text-6xl">{fmtMoney(done.changeCents, currency)}</div>
+              </div>
+            ) : (
+              <div className="mt-1 text-sm text-ink-2">No change due.</div>
+            )}
+            <div className="mt-5 flex flex-col-reverse items-center justify-center gap-2 sm:flex-row sm:gap-3">
+              <Link href={`/sales/${done.saleId}`} className="btn-secondary w-full sm:w-auto">
+                View receipt
+              </Link>
+              <button type="button" className="btn-primary w-full px-8 text-base sm:w-auto" onClick={nextSale}>
+                Next sale
+              </button>
+            </div>
           </div>
         )}
-        <ProductSearch products={products} currency={currency} onPick={(p) => cart.add(p.id)} costOnly />
+        <ProductSearch products={products} currency={currency} onPick={(p) => {
+            setDone(null);
+            cart.add(p.id);
+          }} costOnly />
         <CartLines lines={cart.lines} products={byId} cart={cart} currency={currency} mode="sale" origins={origins} />
       </div>
 

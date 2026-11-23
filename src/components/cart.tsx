@@ -94,6 +94,7 @@ export function ProductSearch({ products, onPick, currency, showStock = true, co
         <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" size={20} aria-hidden />
         <input
           ref={ref}
+          id="product-search"
           className="input py-3 pl-10 text-base"
           placeholder="Scan barcode or type name / SKU"
           value={q}
@@ -187,7 +188,7 @@ export function CartLines({
                 <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-2">
                   <span className="shrink-0">From</span>
                   <select
-                    className="input min-h-8! w-auto! py-1! pr-8 text-xs!"
+                    className="input w-auto! py-1.5! pr-8 text-sm!"
                     aria-label={`Where ${p.name} came from`}
                     value={l.originId ?? ""}
                     onChange={(e) => cart.setOrigin(l.productId, e.target.value ? Number(e.target.value) : null)}
@@ -215,8 +216,8 @@ export function CartLines({
                 />
               </label>
             )}
-            <div className="flex items-center gap-1">
-              <button type="button" className="btn-secondary min-h-9 px-2" aria-label="Decrease" onClick={() => (l.quantity <= 1 ? cart.remove(l.productId) : cart.setQty(l.productId, l.quantity - 1))}>
+            <div className="flex items-center gap-1.5">
+              <button type="button" className="btn-secondary min-w-11 px-0" aria-label={l.quantity <= 1 ? `Remove ${p.name}` : `Decrease quantity of ${p.name}`} onClick={() => (l.quantity <= 1 ? cart.remove(l.productId) : cart.setQty(l.productId, l.quantity - 1))}>
                 <Minus size={16} />
               </button>
               <input
@@ -228,12 +229,12 @@ export function CartLines({
                 value={l.quantity}
                 onChange={(e) => cart.setQty(l.productId, Number(e.target.value))}
               />
-              <button type="button" className="btn-secondary min-h-9 px-2" aria-label="Increase" onClick={() => cart.setQty(l.productId, l.quantity + 1)}>
+              <button type="button" className="btn-secondary min-w-11 px-0" aria-label={`Increase quantity of ${p.name}`} onClick={() => cart.setQty(l.productId, l.quantity + 1)}>
                 <Plus size={16} />
               </button>
             </div>
             {mode !== "receive" && <div className="ml-auto whitespace-nowrap text-right font-semibold tabular-nums">{price === null ? "—" : fmtMoney(price * l.quantity, currency)}</div>}
-            <button type="button" className={clsx("p-1 text-ink-3 hover:text-bad", mode === "receive" && "ml-auto")} aria-label={`Remove ${p.name}`} onClick={() => cart.remove(l.productId)}>
+            <button type="button" className={clsx("-mr-1 flex min-h-11 min-w-11 items-center justify-center rounded-[4px] text-ink-3 hover:bg-bad-soft hover:text-bad", mode === "receive" ? "ml-auto" : "ml-1")} aria-label={`Remove ${p.name}`} onClick={() => cart.remove(l.productId)}>
               <Trash2 size={18} />
             </button>
           </li>
