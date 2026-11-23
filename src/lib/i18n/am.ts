@@ -594,6 +594,7 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^(\d+) sales? · yesterday (.+)$/, (m) => `${m[1]} ሽያጭ · ትናንት ${m[2]}`],
   [/^(\d+) products · (\d+) in stock · imported before batches, no name yet$/, (m) => `${m[1]} ምርቶች · ${m[2]} በክምችት · ከባች በፊት የገቡ፣ ገና ስም የላቸውም`],
   [/^Earlier stock is now “(.+)” \((\d+) products?\)\.$/, (m) => `የቀድሞው ክምችት አሁን “${m[1]}” ነው (${m[2]} ምርቶች)።`],
   [/^No supplier \((\d+)\)$/, (m) => `አቅራቢ የሌላቸው (${m[1]})`],

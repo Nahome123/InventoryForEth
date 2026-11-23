@@ -158,6 +158,7 @@ export async function getDashboard(db: Executor, scope?: SQL) {
   return {
     settings: s,
     today: sum(series.slice(-1)),
+    yesterday: sum(series.slice(-2, -1)),
     last7: sum(series.slice(-7)),
     last30: sum(series),
     grossProfit30: profit30,
