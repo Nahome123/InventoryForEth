@@ -39,7 +39,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
   const out = levels.filter((l) => l.status === "out");
   const low = levels.filter((l) => l.status === "low");
   const value = levels.reduce((sum, l) => sum + Math.max(0, l.onHand) * l.costPriceCents, 0);
-  const retail = levels.reduce((sum, l) => sum + Math.max(0, l.onHand) * l.sellPriceCents, 0);
+  const bought = levels.reduce((sum, l) => sum + Math.max(0, l.onHand + (sold.get(l.id) ?? 0)) * l.costPriceCents, 0);
   const reserved = levels.reduce((sum, l) => sum + l.committed, 0);
   const q = (sp.q ?? "").trim().toLowerCase();
   const status = sp.status ?? "attention";
@@ -71,7 +71,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
         <StatTile label="Active products" value={levels.length} hint={`${reserved} units reserved for orders`} />
         <StatTile label="Out of stock" value={out.length} href="/inventory?status=out" />
         <StatTile label="Low stock" value={low.length} hint="At or below reorder level" href="/inventory?status=low" />
-        {showCosts ? <StatTile label="Stock value (cost)" value={formatMoney(value, s.currency)} hint={`${formatMoney(retail, s.currency)} at selling price`} /> : <StatTile label="Needs attention" value={out.length + low.length} />}
+        {showCosts ? <StatTile label="Stock value (cost)" value={formatMoney(value, s.currency)} hint={`Total cost (all bought) ${formatMoney(bought, s.currency)}`} /> : <StatTile label="Needs attention" value={out.length + low.length} />}
       </div>
 
       <BatchGroups

@@ -540,6 +540,8 @@ export const AM: Record<string, string> = {
   "New batch": "አዲስ ባች",
   "Import a new batch of products": "አዲስ የምርቶች ባች ያስገቡ",
   "Search name, part no. or barcode": "ስም፣ የክፍል ቁጥር ወይም ባርኮድ ይፈልጉ",
+  "Total cost": "ጠቅላላ ወጪ",
+  "Unit cost": "የአንዱ ዋጋ",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
@@ -594,6 +596,8 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^Total cost (.+) · still in stock (.+)$/, (m) => `ጠቅላላ ወጪ ${m[1]} · አሁንም በክምችት ${m[2]}`],
+  [/^Total cost \(all bought\) (.+)$/, (m) => `ጠቅላላ ወጪ (የተገዛው በሙሉ) ${m[1]}`],
   [/^(\d+) sales? · yesterday (.+)$/, (m) => `${m[1]} ሽያጭ · ትናንት ${m[2]}`],
   [/^(\d+) products · (\d+) in stock · imported before batches, no name yet$/, (m) => `${m[1]} ምርቶች · ${m[2]} በክምችት · ከባች በፊት የገቡ፣ ገና ስም የላቸውም`],
   [/^Earlier stock is now “(.+)” \((\d+) products?\)\.$/, (m) => `የቀድሞው ክምችት አሁን “${m[1]}” ነው (${m[2]} ምርቶች)።`],

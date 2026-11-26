@@ -18,7 +18,7 @@ type Item = {
   status: "out" | "low" | "ok";
 };
 
-type Group = { key: string; name: string; items: Item[]; onHand: number; sold: number; value: number };
+type Group = { key: string; name: string; items: Item[]; onHand: number; sold: number; value: number; bought: number };
 
 /**
  * Inventory grouped by import batch: one card per batch. Opening a card lists its products with
@@ -31,13 +31,15 @@ export function BatchGroups({ products, selected, canReceive, money, base = "" }
     const key = p.batchKey;
     let g = map.get(key);
     if (!g) {
-      g = { key, name: p.batch ?? "Earlier stock", items: [], onHand: 0, sold: 0, value: 0 };
+      g = { key, name: p.batch ?? "Earlier stock", items: [], onHand: 0, sold: 0, value: 0, bought: 0 };
       map.set(key, g);
     }
     g.items.push(p);
     g.onHand += p.onHand;
     g.sold += p.sold;
     g.value += Math.max(0, p.onHand) * p.costCents;
+    // What the whole batch cost to buy: total qty (in stock + sold) × unit cost.
+    g.bought += Math.max(0, p.onHand + p.sold) * p.costCents;
   }
   const groups = [...map.values()].sort((a, b) => (a.key === EARLIER ? 1 : b.key === EARLIER ? -1 : Number(b.key) - Number(a.key)));
   const open = groups.find((g) => g.key === selected);
@@ -81,8 +83,8 @@ export function BatchGroups({ products, selected, canReceive, money, base = "" }
                   <dd className="font-semibold tabular-nums">{g.sold}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-ink-3">{money ? "Value" : "Out"}</dt>
-                  <dd className="truncate font-semibold tabular-nums">{money ? money(g.value) : g.items.filter((i) => i.status === "out").length}</dd>
+                  <dt className="text-xs text-ink-3">{money ? "Total cost" : "Out"}</dt>
+                  <dd className="truncate font-semibold tabular-nums">{money ? money(g.bought) : g.items.filter((i) => i.status === "out").length}</dd>
                 </div>
               </dl>
             </Link>
@@ -106,6 +108,7 @@ export function BatchGroups({ products, selected, canReceive, money, base = "" }
                 {open.name}
               </h3>
               <p className="text-xs text-ink-3">{`${open.items.length} products · ${open.onHand + open.sold} total · ${open.onHand} in stock · ${open.sold} sold`}</p>
+              {money && <p className="text-xs text-ink-3">{`Total cost ${money(open.bought)} · still in stock ${money(open.value)}`}</p>}
             </div>
             <div className="flex gap-2">
               {canReceive && (
@@ -131,6 +134,8 @@ export function BatchGroups({ products, selected, canReceive, money, base = "" }
                     <th className="num">In stock</th>
                     <th className="num">Sold</th>
                     <th className="num hidden sm:table-cell">Available</th>
+                    {money && <th className="num hidden md:table-cell">Unit cost</th>}
+                    {money && <th className="num">Total cost</th>}
                     <th className="hidden sm:table-cell">Status</th>
                   </tr>
                 </thead>
@@ -150,6 +155,8 @@ export function BatchGroups({ products, selected, canReceive, money, base = "" }
                       <td className="num font-semibold">{i.onHand}</td>
                       <td className="num">{i.sold || "—"}</td>
                       <td className={clsx("num hidden sm:table-cell", i.available < 0 && "text-bad")}>{i.available}</td>
+                      {money && <td className="num hidden text-ink-2 md:table-cell">{money(i.costCents)}</td>}
+                      {money && <td className="num">{money(Math.max(0, i.onHand + i.sold) * i.costCents)}</td>}
                       <td className="hidden sm:table-cell">
                         <StockBadge status={i.status} />
                       </td>
@@ -163,7 +170,10 @@ export function BatchGroups({ products, selected, canReceive, money, base = "" }
                     <td className="num">{open.onHand + open.sold}</td>
                     <td className="num">{open.onHand}</td>
                     <td className="num">{open.sold}</td>
-                    <td className="hidden sm:table-cell" colSpan={2} />
+                    <td className="hidden sm:table-cell" />
+                    {money && <td className="hidden md:table-cell" />}
+                    {money && <td className="num">{money(open.bought)}</td>}
+                    <td className="hidden sm:table-cell" />
                   </tr>
                 </tfoot>
               </table>
