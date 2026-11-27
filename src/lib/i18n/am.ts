@@ -554,7 +554,6 @@ export const AM: Record<string, string> = {
   "Add product": "ምርት ጨምር",
   "Click a bar to see that day's sales.": "የዚያን ቀን ሽያጭ ለማየት አምድ ይንኩ።",
   "No sales that day.": "በዚያ ቀን ሽያጭ የለም።",
-  "Close": "ዝጋ",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
