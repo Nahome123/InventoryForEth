@@ -4,6 +4,7 @@ import type { Executor } from "./db/client";
 import { batches, paymentMethod as paymentEnum, products, type PaymentMethod } from "./db/schema";
 import { UserError } from "./errors";
 import { parseMoneyToCents } from "./money";
+import { applyMovement } from "./inventory";
 import { createProductTx, findOrCreateCategory, parseProductInput } from "./products";
 import { createSaleTx } from "./sales";
 
@@ -22,7 +23,11 @@ export const SALES_TEMPLATE =
 export type ImportResult = { created: number; updated: number; sales?: number; lines?: number; batchId?: number; errors: string[] };
 
 /** `batch` set: every row becomes a new product in a new, separate batch. Otherwise rows update/create "earlier stock" products. */
-export type ProductImportOptions = { batch?: { name: string; supplier: string | null } };
+export type ProductImportOptions = {
+  batch?: { name: string; supplier: string | null };
+  /** Add the rows to this existing batch: known part numbers get the quantity added, new ones are created. */
+  addTo?: number;
+};
 
 /** "TOTAL IN BIRR" → "total_in_birr", "Unit price (ETB)" → "unit_price_etb". */
 const norm = (h: string) =>
@@ -77,6 +82,10 @@ const pick = (r: Record<string, string>, ...keys: string[]) => {
 
 /** Creates new products and updates existing ones (matched by SKU). All-or-nothing. */
 export async function importProducts(db: Executor, csv: string, userId: number, opts: ProductImportOptions = {}): Promise<ImportResult> {
+  const addToBatch = opts.addTo
+    ? (await db.select({ id: batches.id, supplier: batches.supplier }).from(batches).where(eq(batches.id, opts.addTo)))[0]
+    : undefined;
+  if (opts.addTo && !addToBatch) return { created: 0, updated: 0, errors: ["That batch no longer exists."] };
   // Skip a "TOTAL" summary line at the bottom of a sheet (has a total but no part number).
   const rows = parseCsv(csv).filter((r) => !(/^(grand\s*)?total\b/i.test(pick(r, "name", "product", "product_name", "item", "item_name")) && !pick(r, "sku", "code", "product_code", "part_no", "part_number", "part")));
   if (!rows.length) throw new UserError("The file has no data rows.");
@@ -105,7 +114,7 @@ export async function importProducts(db: Executor, csv: string, userId: number, 
       reorderLevel: cleanNum(pick(r, "reorder_level", "min_stock")),
       reorderQty: cleanNum(pick(r, "reorder_qty", "reorder_quantity")),
       leadTimeDays: cleanNum(pick(r, "lead_time_days", "lead_time")),
-      supplier: opts.batch?.supplier || pick(r, "supplier"),
+      supplier: opts.batch?.supplier || addToBatch?.supplier || pick(r, "supplier"),
       description: name !== pick(r, "description") ? pick(r, "description") : "",
       openingStock: qty,
     };
@@ -133,18 +142,30 @@ export async function importProducts(db: Executor, csv: string, userId: number, 
         const [b] = await tx.insert(batches).values({ name: opts.batch.name, supplier: opts.batch.supplier, createdBy: userId }).returning({ id: batches.id });
         batchId = b.id;
       }
-      // A new batch never touches existing products; otherwise match "earlier stock" products by SKU.
-      const existing = batchId
-        ? []
-        : await tx
-            .select({ id: products.id, sku: products.sku })
-            .from(products)
-            .where(and(inArray(sql`lower(${products.sku})`, [...seen]), isNull(products.batchId)));
-      const bySku = new Map(existing.map((e) => [e.sku.toLowerCase(), e.id]));
+      if (addToBatch) batchId = addToBatch.id;
+      // A new batch never touches existing products; otherwise match by SKU inside the chosen batch (or earlier stock).
+      const existing =
+        opts.batch
+          ? []
+          : await tx
+              .select({ id: products.id, sku: products.sku, onHand: products.stockOnHand, cost: products.costPriceCents })
+              .from(products)
+              .where(and(inArray(sql`lower(${products.sku})`, [...seen]), addToBatch ? eq(products.batchId, addToBatch.id) : isNull(products.batchId)));
+      const bySku = new Map(existing.map((e) => [e.sku.toLowerCase(), e]));
       for (const { rowNo, ...raw } of parsed) {
         try {
-          const id = bySku.get(raw.sku.toLowerCase());
-          if (id) {
+          const match = bySku.get(raw.sku.toLowerCase());
+          const id = match?.id;
+          if (match && addToBatch) {
+            // Restock: add the quantity; cost becomes the average of old stock and the new units.
+            const d = parseProductInput(raw);
+            const qty = raw.openingStock === "" ? 0 : Number(raw.openingStock);
+            const old = Math.max(0, match.onHand);
+            const cost = qty > 0 && old + qty > 0 ? Math.round((old * match.cost + qty * d.costPrice) / (old + qty)) : match.cost;
+            await tx.update(products).set({ costPriceCents: cost, updatedAt: new Date() }).where(eq(products.id, match.id));
+            if (qty > 0) await applyMovement(tx, { productId: match.id, type: "receipt", quantity: qty, userId, note: "Added to batch by import" });
+            updated++;
+          } else if (id) {
             const d = parseProductInput(raw);
             const categoryId = await findOrCreateCategory(tx, d.category);
             await tx

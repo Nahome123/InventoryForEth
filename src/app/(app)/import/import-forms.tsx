@@ -4,9 +4,9 @@ import { useActionState, useState } from "react";
 import { Field, FormMessage, SubmitButton } from "@/components/form";
 import { importProductsAction, importSalesAction } from "./actions";
 
-export function ProductImportForm({ suppliers, suggestedName }: { suppliers: string[]; suggestedName: string }) {
+export function ProductImportForm({ suppliers, suggestedName, batches }: { suppliers: string[]; suggestedName: string; batches: { value: string; label: string }[] }) {
   const [state, action] = useActionState(importProductsAction, null);
-  const [mode, setMode] = useState<"new" | "update">("new");
+  const [mode, setMode] = useState<"new" | "add" | "update">("new");
   return (
     <form action={action} className="space-y-3">
       <FormMessage state={state} />
@@ -15,6 +15,7 @@ export function ProductImportForm({ suppliers, suggestedName }: { suppliers: str
         {(
           [
             ["new", "New batch (recommended)", "Kept separate: its own products, stock, sales and profit. Same part numbers as earlier stock are allowed."],
+            ...(batches.length ? ([["add", "Add to an existing batch", "Same part number in that batch: the quantity is added to its stock. New part numbers become new products in the batch."]] as const) : []),
             ["update", "Update earlier stock", "Rows with an existing part number update that product. New part numbers are added."],
           ] as const
         ).map(([v, l, d]) => (
@@ -27,6 +28,17 @@ export function ProductImportForm({ suppliers, suggestedName }: { suppliers: str
           </label>
         ))}
       </fieldset>
+      {mode === "add" && (
+        <Field label="Batch to add to">
+          <select className="input" name="addTo" required defaultValue={batches[0]?.value}>
+            {batches.map((b) => (
+              <option key={b.value} value={b.value} translate="no">
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       {mode === "new" && (
         <div className="grid gap-3 sm:max-w-sm">
           <Field label="Supplier name" hint="Also the name of this batch.">

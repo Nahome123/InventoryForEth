@@ -6,7 +6,8 @@ import { requireActionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { errorMessage, UserError } from "@/lib/errors";
 import { adjustStock, type AdjustKind } from "@/lib/inventory";
-import { createProduct, setProductActive, updateProduct } from "@/lib/products";
+import { createProduct, deleteProduct, setProductActive, updateProduct } from "@/lib/products";
+import { toId } from "@/lib/ids";
 import type { ActionState } from "@/components/form";
 
 function readProduct(fd: FormData) {
@@ -31,13 +32,18 @@ export async function createProductAction(_: ActionState, fd: FormData): Promise
   let id: number;
   try {
     const user = await requireActionUser("manageProducts");
-    const p = await createProduct(await getDb(), { ...readProduct(fd), openingStock: String(fd.get("openingStock") ?? "") }, user.id);
+    const batchRaw = String(fd.get("batchId") ?? "");
+    const batchId = batchRaw ? toId(batchRaw) : null;
+    if (batchRaw && !batchId) throw new UserError("Pick a valid batch.");
+    const p = await createProduct(await getDb(), { ...readProduct(fd), openingStock: String(fd.get("openingStock") ?? "") }, user.id, batchId);
     id = p.id;
   } catch (e) {
     return { error: errorMessage(e) };
   }
   revalidatePath("/products");
-  redirect(fd.get("another") ? "/products/new?created=1" : `/products/${id}?created=1`);
+  revalidatePath("/inventory");
+  const keep = String(fd.get("batchId") ?? "");
+  redirect(fd.get("another") ? `/products/new?created=1${keep ? `&batch=${encodeURIComponent(keep)}` : ""}` : `/products/${id}?created=1`);
 }
 
 export async function updateProductAction(id: number, _: ActionState, fd: FormData): Promise<ActionState> {
@@ -49,6 +55,18 @@ export async function updateProductAction(id: number, _: ActionState, fd: FormDa
   }
   revalidatePath(`/products/${id}`);
   return { ok: "Product saved." };
+}
+
+export async function deleteProductAction(id: number, _: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    await requireActionUser("manageProducts");
+    if (fd.get("confirm") !== "on") throw new UserError("Tick the box to confirm.");
+    await deleteProduct(await getDb(), id);
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  for (const p of ["/products", "/inventory", "/"]) revalidatePath(p);
+  redirect("/products?deleted=1");
 }
 
 export async function setActiveAction(id: number, active: boolean) {

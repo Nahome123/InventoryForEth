@@ -24,6 +24,8 @@ export function ProductForm({
   isNew,
   currency,
   defaultLeadTime,
+  batches,
+  defaultBatch,
 }: {
   action: (s: ActionState, fd: FormData) => Promise<ActionState>;
   initial?: Partial<ProductFormValues>;
@@ -31,6 +33,9 @@ export function ProductForm({
   isNew: boolean;
   currency: string;
   defaultLeadTime: number;
+  /** New product only: which import batch it belongs to ("" = earlier stock). */
+  batches?: { value: string; label: string }[];
+  defaultBatch?: string;
 }) {
   const { state, onSubmit, pending } = useActionForm(action, null);
   const v = initial ?? {};
@@ -81,6 +86,18 @@ export function ProductForm({
       <section className="card space-y-4 p-5 sm:p-6">
         <h2 className="text-lg font-semibold">Stock & restocking</h2>
         <div className="grid gap-4 sm:grid-cols-2">
+          {isNew && batches && batches.length > 0 && (
+            <Field label="Batch" hint="Which import / shipment this product belongs to.">
+              <select className="input" name="batchId" defaultValue={defaultBatch ?? ""}>
+                <option value="">Earlier stock (no batch)</option>
+                {batches.map((b) => (
+                  <option key={b.value} value={b.value} translate="no">
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           {isNew && (
             <Field label="Opening stock" hint="Units on the shelf right now.">
               <input className="input" name="openingStock" type="number" min={0} step={1} defaultValue={0} />

@@ -542,6 +542,19 @@ export const AM: Record<string, string> = {
   "Search name, part no. or barcode": "ስም፣ የክፍል ቁጥር ወይም ባርኮድ ይፈልጉ",
   "Total cost": "ጠቅላላ ወጪ",
   "Unit cost": "የአንዱ ዋጋ",
+  "Add to an existing batch": "ወደ ነባር ባች ጨምር",
+  "Same part number in that batch: the quantity is added to its stock. New part numbers become new products in the batch.": "በዚያ ባች ውስጥ ተመሳሳይ የክፍል ቁጥር ካለ ብዛቱ ወደ ክምችቱ ይጨመራል። አዲስ የክፍል ቁጥሮች በባቹ ውስጥ አዲስ ምርቶች ይሆናሉ።",
+  "Batch to add to": "የሚጨመርበት ባች",
+  "Pick the batch to add to.": "የሚጨመርበትን ባች ይምረጡ።",
+  "Which import / shipment this product belongs to.": "ይህ ምርት የየትኛው ማስገቢያ / ጭነት እንደሆነ።",
+  "Earlier stock (no batch)": "የቀድሞ ክምችት (ባች የሌለው)",
+  "Delete product": "ምርቱን ሰርዝ",
+  "Removes it and its stock from inventory. Only possible if it was never sold or ordered.": "ምርቱን እና ክምችቱን ከክምችት ያስወግዳል። የሚቻለው ፈጽሞ ካልተሸጠ ወይም ካልታዘዘ ብቻ ነው።",
+  "Product deleted.": "ምርቱ ተሰርዟል።",
+  "Add product": "ምርት ጨምር",
+  "Click a bar to see that day's sales.": "የዚያን ቀን ሽያጭ ለማየት አምድ ይንኩ።",
+  "No sales that day.": "በዚያ ቀን ሽያጭ የለም።",
+  "Close": "ዝጋ",
   // Profit, expenses and item origins
   "Profit": "ትርፍ",
   "Profit & loss": "ትርፍ እና ኪሳራ",
@@ -596,6 +609,8 @@ type Pattern = [RegExp, (m: RegExpMatchArray) => string];
 
 /** Text that mixes words with numbers or names. Checked in order after the exact-match table. */
 export const AM_PATTERNS: Pattern[] = [
+  [/^Added to batch: (\d+) new products?, (\d+) restocked\.$/, (m) => `ወደ ባች ተጨምሯል፦ ${m[1]} አዲስ ምርቶች፣ ${m[2]} ተሞልተዋል።`],
+  [/^Yes, permanently delete “(.+)”$/, (m) => `አዎ፣ “${m[1]}”ን እስከመጨረሻው ሰርዝ`],
   [/^Total cost (.+) · still in stock (.+)$/, (m) => `ጠቅላላ ወጪ ${m[1]} · አሁንም በክምችት ${m[2]}`],
   [/^Total cost \(all bought\) (.+)$/, (m) => `ጠቅላላ ወጪ (የተገዛው በሙሉ) ${m[1]}`],
   [/^(\d+) sales? · yesterday (.+)$/, (m) => `${m[1]} ሽያጭ · ትናንት ${m[2]}`],

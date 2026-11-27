@@ -164,6 +164,8 @@ export async function getDashboard(db: Executor, scope?: SQL) {
     grossProfit30: profit30,
     marginPct30: lineRevenue30 > 0 ? Math.round((profit30 / lineRevenue30) * 100) : null,
     series,
+    /** Per day: what sold (product, qty, line revenue). */
+    dayLines: lines.map((l) => ({ day: l.day, productId: l.productId, qty: l.qty, revenue: l.revenue })),
     openOrders: Number(openOrders[0]?.count ?? 0),
     ordersDueSoon: Number(dueSoon[0]?.count ?? 0),
   };

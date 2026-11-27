@@ -40,7 +40,7 @@ export default async function ImportPage() {
           <a className="text-sm text-accent-fg underline" href="/api/export/template-products">
             Download products template
           </a>
-          <ProductImportForm suppliers={suppliers} suggestedName="e.g. AMR" />
+          <ProductImportForm suppliers={suppliers} suggestedName="e.g. AMR" batches={list.map((b) => ({ value: String(b.id), label: `${b.name} (${b.products})` }))} />
         </section>
         <section className="card space-y-3 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">2. Import past sales</h2>

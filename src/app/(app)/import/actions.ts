@@ -21,20 +21,26 @@ async function readCsv(fd: FormData) {
 export async function importProductsAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const user = await requireActionUser("importExport");
-    const separate = fd.get("mode") !== "update";
+    const mode = String(fd.get("mode") ?? "new");
+    const separate = mode === "new";
+    const addTo = mode === "add" ? toId(fd.get("addTo")) : null;
+    if (mode === "add" && !addTo) throw new UserError("Pick the batch to add to.");
     const name = String(fd.get("batchName") ?? "").trim().replace(/\s+/g, " ");
     // The supplier is the batch name.
     const supplier = name || null;
     if (separate && !name) throw new UserError("Enter the supplier name for this import.");
     if (name.length > 80 || (supplier?.length ?? 0) > 120) throw new UserError("Batch or supplier name is too long.");
-    const r = await importProducts(await getDb(), await readCsv(fd), user.id, separate ? { batch: { name, supplier } } : {});
+    const r = await importProducts(await getDb(), await readCsv(fd), user.id, separate ? { batch: { name, supplier } } : addTo ? { addTo } : {});
     if (r.errors.length) return { error: "Nothing was imported. Fix these rows and try again:", errors: r.errors };
     revalidatePath("/products");
     revalidatePath("/inventory");
+    revalidatePath("/");
     return {
       ok: separate
         ? `New batch “${name}” created with ${r.created} product${r.created === 1 ? "" : "s"}. Pick it in the Batch filter to see its own numbers.`
-        : `Imported: ${r.created} new product${r.created === 1 ? "" : "s"}, ${r.updated} updated.`,
+        : addTo
+          ? `Added to batch: ${r.created} new product${r.created === 1 ? "" : "s"}, ${r.updated} restocked.`
+          : `Imported: ${r.created} new product${r.created === 1 ? "" : "s"}, ${r.updated} updated.`,
     };
   } catch (e) {
     return { error: errorMessage(e) };

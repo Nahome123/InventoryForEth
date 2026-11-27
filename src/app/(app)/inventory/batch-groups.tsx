@@ -112,6 +112,11 @@ export function BatchGroups({ products, selected, canReceive, money, base = "" }
             </div>
             <div className="flex gap-2">
               {canReceive && (
+                <Link href={`/products/new${open.key === EARLIER ? "" : `?batch=${open.key}`}`} className="btn-secondary">
+                  <Plus size={16} aria-hidden /> Add product
+                </Link>
+              )}
+              {canReceive && (
                 <Link href="/inventory/receive" className="btn-primary">
                   <PackagePlus size={16} aria-hidden /> Add stock
                 </Link>

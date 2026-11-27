@@ -1,7 +1,7 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Executor, Tx } from "./db/client";
-import { categories, products } from "./db/schema";
+import { batches, categories, customerOrders, orderItems, products, saleItems, stockMovements } from "./db/schema";
 import { UserError } from "./errors";
 import { applyMovement } from "./inventory";
 import { parseMoneyToCents } from "./money";
@@ -136,8 +136,16 @@ export async function createProductTx(tx: Tx, raw: ProductInput & { openingStock
   return p;
 }
 
-export async function createProduct(db: Executor, raw: ProductInput & { openingStock?: number | string | null }, userId: number | null) {
-  return db.transaction((tx) => createProductTx(tx, raw, userId));
+export async function createProduct(db: Executor, raw: ProductInput & { openingStock?: number | string | null }, userId: number | null, batchId: number | null = null) {
+  return db.transaction(async (tx) => {
+    if (batchId !== null) {
+      const [b] = await tx.select({ supplier: batches.supplier }).from(batches).where(eq(batches.id, batchId));
+      if (!b) throw new UserError("That batch no longer exists.");
+      // A batch's products carry its supplier name.
+      if (!raw.supplier?.trim()) raw = { ...raw, supplier: b.supplier ?? "" };
+    }
+    return createProductTx(tx, raw, userId, batchId);
+  });
 }
 
 /** Updates catalog details. Stock is NOT editable here; it only changes through movements. */
@@ -169,6 +177,26 @@ export async function updateProduct(db: Executor, id: number, raw: ProductInput)
       .returning();
     if (!p) throw new UserError("Product not found.");
     return p;
+  });
+}
+
+/**
+ * Permanently deletes a product and its stock history. Refused when it appears on any sale or
+ * customer order (deactivate it instead), so recorded sales are never changed.
+ */
+export async function deleteProduct(db: Executor, id: number) {
+  return db.transaction(async (tx) => {
+    const [p] = await tx.select({ name: products.name }).from(products).where(eq(products.id, id)).for("update");
+    if (!p) throw new UserError("Product not found.");
+    const [s] = await tx.select({ n: sql<number>`count(*)::int` }).from(saleItems).where(eq(saleItems.productId, id));
+    const [o] = await tx.select({ n: sql<number>`count(*)::int` }).from(orderItems).innerJoin(customerOrders, eq(customerOrders.id, orderItems.orderId)).where(eq(orderItems.productId, id));
+    if (Number(s.n) > 0 || Number(o.n) > 0)
+      throw new UserError(
+        `“${p.name}” is on ${Number(s.n)} sale${Number(s.n) === 1 ? "" : "s"} and ${Number(o.n)} customer order${Number(o.n) === 1 ? "" : "s"}, so it can't be deleted. Deactivate it instead, or reduce its stock with Adjust stock.`,
+      );
+    await tx.delete(stockMovements).where(eq(stockMovements.productId, id));
+    await tx.delete(products).where(eq(products.id, id));
+    return p.name;
   });
 }
 

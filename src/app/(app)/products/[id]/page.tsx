@@ -10,6 +10,7 @@ import { can } from "@/lib/permissions";
 import { centsToInput, formatMoney } from "@/lib/money";
 import { formatDateTime, MOVEMENT_LABELS, saleNo } from "@/lib/format";
 import { Alert, Badge, Empty, PageHeader, StatTile, StockBadge, TableWrap } from "@/components/ui";
+import { DeleteProduct } from "./delete-product";
 import { ProductForm } from "../product-form";
 import { setActiveAction, updateProductAction } from "../actions";
 import { AdjustStockForm } from "./adjust-form";
@@ -191,6 +192,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           See full history →
         </Link>
       </p>
+      {canEdit && <DeleteProduct id={id} name={p.name} />}
     </>
   );
 }

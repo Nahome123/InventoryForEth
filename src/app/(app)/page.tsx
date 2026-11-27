@@ -50,6 +50,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const cur = d.settings.currency;
   const money = (c: number) => formatMoney(c, cur);
   const urgent = restock.rows.filter((r) => r.forecast.urgency !== "ok" && (batch === undefined || r.batchId === batch)).sort((a, b) => (a.forecast.urgency === b.forecast.urgency ? a.available - b.available : a.forecast.urgency === "order_now" ? -1 : 1));
+  const dayIds = [...new Set(d.dayLines.map((l) => l.productId))];
+  const names = new Map(
+    dayIds.length ? (await db.select({ id: products.id, name: products.name, sku: products.sku }).from(products).where(inArray(products.id, dayIds))).map((r) => [r.id, r]) : [],
+  );
   const short = (ymd: string) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(ymd + "T00:00:00Z"));
 
   return (
@@ -94,6 +98,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             ariaLabel="Daily sales revenue for the last 30 days"
             axisDivisor={100}
             data={d.series.map((p) => ({ label: short(p.day), value: p.revenue, display: money(p.revenue), sub: `${p.count} sale${p.count === 1 ? "" : "s"}` }))}
+            details={d.series.map((p) => ({
+              title: new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(p.day + "T00:00:00Z")),
+              rows: d.dayLines
+                .filter((l) => String(l.day) === p.day)
+                .sort((a, b) => b.revenue - a.revenue)
+                .map((l) => ({ name: names.get(l.productId)?.name ?? `#${l.productId}`, sub: names.get(l.productId)?.sku, qty: l.qty, amount: money(l.revenue) })),
+            }))}
           />
         </section>
 

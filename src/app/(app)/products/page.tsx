@@ -7,7 +7,7 @@ import { getSettings } from "@/lib/analytics";
 import { getStockLevels } from "@/lib/inventory";
 import { can } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
-import { Badge, Empty, MobileCard, MobileList, PageHeader, StockBadge, TableWrap } from "@/components/ui";
+import { Alert, Badge, Empty, MobileCard, MobileList, PageHeader, StockBadge, TableWrap } from "@/components/ui";
 import { Filters } from "@/components/filters";
 import { SuggestInput, type Suggestion } from "@/components/suggest-input";
 import { batchLabel, batchOptions, EARLIER_LABEL, parseBatch } from "@/lib/batches";
@@ -15,7 +15,7 @@ import { BatchFilter } from "@/components/batch-filter";
 
 export const metadata = { title: "Products" };
 
-type SP = { q?: string; category?: string; show?: string; stock?: string; batch?: string };
+type SP = { q?: string; category?: string; show?: string; stock?: string; batch?: string; deleted?: string };
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await requireUser("viewInventory");
@@ -135,6 +135,11 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           )
         }
       />
+      {sp.deleted && (
+        <div className="mb-4">
+          <Alert tone="good">Product deleted.</Alert>
+        </div>
+      )}
       <BatchFilter options={batchOpts} value={sp.batch} />
       <Filters active={[sp.category, sp.stock, show !== "active" ? show : ""].filter(Boolean).length}>
         <form className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto_auto]" role="search">
